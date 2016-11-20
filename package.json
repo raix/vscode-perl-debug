@@ -12,7 +12,7 @@
     "vscode": "^1.1.0",
     "node": "^5.10.0"
   },
-  "icon": "images/perl-debug-icon.svg",
+  "icon": "images/vscode-perl-debug.png",
   "categories": [
     "Debuggers"
   ],
