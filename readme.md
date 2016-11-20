@@ -2,7 +2,7 @@
 
 A minimalistic debugger for perl in vs code.
 
-![Perl Debug](vscode-perl-debugger.gif)
+![Perl Debug](images/vscode-perl-debugger.gif)
 
 ### Credits
 
