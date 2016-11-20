@@ -1,0 +1,92 @@
+{
+  "name": "perl-debug",
+  "displayName": "Perl Debug",
+  "version": "0.0.1",
+  "publisher": "raix",
+  "description": "Perl debug adapter for VS Code.",
+  "author": {
+    "name": "Morten Henriksen",
+    "email": "mh@gi2.dk"
+  },
+  "engines": {
+    "vscode": "^1.1.0",
+    "node": "^5.10.0"
+  },
+  "icon": "images/perl-debug-icon.svg",
+  "categories": [
+    "Debuggers"
+  ],
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/raix/vscode-perl-debug.git"
+  },
+  "bugs": {
+    "url": "https://github.com/raix/vscode-perl-debug/issues"
+  },
+  "dependencies": {
+    "vscode-debugprotocol": "^1.15.0-pre.1",
+    "vscode-debugadapter": "^1.15.0-pre.1"
+  },
+  "devDependencies": {
+    "@types/es6-promise": "0.0.32",
+    "@types/mocha": "^2.2.32",
+    "@types/node": "^6.0.39",
+    "mocha": "^3.1.2",
+    "typescript": "^2.0.10",
+    "vscode": "^0.11.18",
+    "vscode-debugadapter-testsupport": "^1.14.0"
+  },
+  "scripts": {
+    "prepublish": "node ./node_modules/typescript/bin/tsc -p ./src",
+    "compile": "node ./node_modules/typescript/bin/tsc -p ./src",
+    "watch": "node ./node_modules/typescript/bin/tsc -w -p ./src",
+    "test": "node ./node_modules/mocha/bin/mocha -u tdd ./out/tests/",
+    "test:w": "mocha -u tdd ./out/tests/ --watch",
+    "postinstall": "node ./node_modules/vscode/bin/install",
+    "test2": "cd src/tests && electron-mocha ./test.js"
+  },
+  "main": "./out/extension",
+  "activationEvents": [
+    "onCommand:extension.perl-debug.getProgramName",
+    "onCommand:extension.perl-debug.provideInitialConfigurations"
+  ],
+  "contributes": {
+    "breakpoints": [
+      {
+        "language": "perl"
+      }
+    ],
+    "debuggers": [
+      {
+        "type": "perl",
+        "label": "Perl Debug",
+        "program": "./out/perlDebug.js",
+        "runtime": "node",
+        "variables": {
+          "AskForProgramName": "extension.perl-debug.getProgramName"
+        },
+        "configurationAttributes": {
+          "launch": {
+            "required": [
+              "program"
+            ],
+            "properties": {
+              "program": {
+                "type": "string",
+                "description": "Absolute path to perl file.",
+                "default": "${workspaceRoot}/${command.AskForProgramName}"
+              },
+              "stopOnEntry": {
+                "type": "boolean",
+                "description": "Automatically stop after launch.",
+                "default": true
+              }
+            }
+          }
+        },
+        "initialConfigurations": "extension.perl-debug.provideInitialConfigurations"
+      }
+    ]
+  }
+}

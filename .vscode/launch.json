@@ -1,0 +1,50 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"type": "extensionHost",
+			"request": "launch",
+			"name": "Run Extension",
+			"preLaunchTask": "npm",
+			"runtimeExecutable": "${execPath}",
+			"args": [
+				"--extensionDevelopmentPath=${workspaceRoot}"
+			],
+			"sourceMaps": true,
+			"outFiles": [ "${workspaceRoot}/out/*.js" ]
+		},
+		{
+			"type": "node",
+			"request": "launch",
+			"name": "Run Server",
+			"cwd": "${workspaceRoot}",
+			"program": "${workspaceRoot}/src/perlDebug.ts",
+			"args": [ "--server=4711" ],
+			"sourceMaps": true,
+			"outFiles": [ "${workspaceRoot}/out/*.js" ]
+		},
+		{
+			"type": "node",
+			"request": "launch",
+			"name": "Run Tests",
+			"cwd": "${workspaceRoot}",
+			"program": "${workspaceRoot}/node_modules/mocha/bin/_mocha",
+			"args": [
+				"-u", "tdd",
+				"--timeout", "999999",
+				"--colors",
+				"./out/tests/"
+			],
+			"sourceMaps": true,
+			"outDir": "${workspaceRoot}/out",
+			"internalConsoleOptions": "openOnSessionStart"
+		},
+		{
+			"type": "perl",
+			"request": "launch",
+			"name": "Run Perl Debugger",
+			"program": "${workspaceRoot}/${command.AskForProgramName}",
+			"stopOnEntry": true
+		}
+	]
+}
