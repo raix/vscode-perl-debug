@@ -2,7 +2,7 @@
   "name": "perl-debug",
   "displayName": "Perl Debug",
   "version": "0.0.1",
-  "publisher": "raix",
+  "publisher": "mortenhenriksen",
   "description": "Perl debug adapter for VS Code.",
   "author": {
     "name": "Morten Henriksen",
