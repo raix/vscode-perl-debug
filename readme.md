@@ -6,7 +6,7 @@ A minimalistic debugger for perl in vs code.
 
 ### Credits
 
-Credits goes to for making an awesome editor and a nice getting started mock debugger: [https://github.com/Microsoft/vscode-mock-debug.git](https://github.com/Microsoft/vscode-mock-debug.git)
+Credits goes to Microsoft for making an awesome editor and a nice getting started mock debugger: [https://github.com/Microsoft/vscode-mock-debug.git](https://github.com/Microsoft/vscode-mock-debug.git)
 
 ### Disclaimer
 
