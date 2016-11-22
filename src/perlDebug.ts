@@ -516,13 +516,14 @@ class PerlDebugSession extends DebugSession {
 			};
 		}
 		return {
-			value: `${value} (${isVariable})`,
+			value: value,
 			reference: null,
 		};
 	}
 
 	/**
 	 * Evaluate watch
+	 * Note: We don't actually levarage the debugger watch capabilities yet
 	 */
 	protected evaluateWatch(response: DebugProtocol.EvaluateResponse, args: DebugProtocol.EvaluateArguments): void {
 		// Clear watch if last request wasn't setting a watch?
