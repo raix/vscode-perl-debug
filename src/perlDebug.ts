@@ -7,7 +7,7 @@ import {
 } from 'vscode-debugadapter';
 import {DebugProtocol} from 'vscode-debugprotocol';
 import {readFileSync} from 'fs';
-import {basename, dirname} from 'path';
+import {basename, dirname, join} from 'path';
 import {spawn, ChildProcess} from 'child_process';
 import { perlDebuggerConnection } from './adapter';
 
@@ -15,6 +15,7 @@ import { perlDebuggerConnection } from './adapter';
  * This interface should always match the schema found in the perl-debug extension manifest.
  */
 export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
+	root: string,
 	/** An absolute path to the program to debug. */
 	program: string;
 	/** Automatically stop target after launch. If not specified, target does not stop. */
@@ -53,6 +54,16 @@ class PerlDebugSession extends DebugSession {
 		this.setDebuggerLinesStartAt1(false);
 		this.setDebuggerColumnsStartAt1(false);
 	}
+
+	private rootPath: string = '';
+
+   /* protected convertClientPathToDebugger(clientPath: string): string {
+		return clientPath.replace(this.rootPath, '');
+	}
+
+    protected convertDebuggerPathToClient(debuggerPath: string): string {
+		return join(this.rootPath, debuggerPath);
+	}*/
 
 	protected initializeRequest(response: DebugProtocol.InitializeResponse, args: DebugProtocol.InitializeRequestArguments): void {
 		// Rig output
@@ -99,6 +110,7 @@ class PerlDebugSession extends DebugSession {
 	}
 
 	protected launchRequest(response: DebugProtocol.LaunchResponse, args: LaunchRequestArguments): void {
+		this.rootPath = args.root;
 		this._sourceFile = args.program;
 		this._sourceLines = readFileSync(this._sourceFile).toString().split('\n');
 
@@ -140,9 +152,7 @@ class PerlDebugSession extends DebugSession {
  *
  * if possible:
  *
- * * step into
  * * step out
- * * restart could be softer
  * * step back
  * * reverse continue
  */
@@ -177,27 +187,60 @@ class PerlDebugSession extends DebugSession {
 
 
 
+	protected pauseRequest(response: DebugProtocol.PauseResponse, args: DebugProtocol.PauseArguments): void {
+		this.sendEvent(new OutputEvent(`ERR>pause not implemented\n`));
+		this.sendResponse(response);
+		this.sendEvent(new StoppedEvent("breakpoint", PerlDebugSession.THREAD_ID));
+	}
+
+
+    protected stepOutRequest(response: DebugProtocol.StepOutResponse, args: DebugProtocol.StepOutArguments): void {
+		this.sendEvent(new OutputEvent(`ERR>step out not implemented\n`));
+		this.sendResponse(response);
+		this.sendEvent(new StoppedEvent("breakpoint", PerlDebugSession.THREAD_ID));
+	}
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+    protected setVariableRequest(response: DebugProtocol.SetVariableResponse, args: DebugProtocol.SetVariableArguments): void{
+		this.sendEvent(new OutputEvent(`ERR>setVariableRequest not implemented\n`));
+		this.sendResponse(response);
+		this.sendEvent(new StoppedEvent("breakpoint", PerlDebugSession.THREAD_ID));
+	}
 
 
 /**
  * Implemented
  */
+
+	/**
+	 * Step in
+	 */
+    protected stepInRequest(response: DebugProtocol.StepInResponse, args: DebugProtocol.StepInArguments): void {
+		this.perlDebugger.request('s')
+			.then((res) => {
+				if (res.ln) {
+					this._currentLine = this.convertDebuggerLineToClient(res.ln);
+				}
+
+				this.sendResponse(response);
+
+				if (res.finished) {
+					this.sendEvent(new TerminatedEvent());
+				} else {
+					this.sendEvent(new StoppedEvent("step", PerlDebugSession.THREAD_ID));
+				}
+				// no more lines: run to end
+			})
+			.catch(err => {
+				this.sendEvent(new OutputEvent(`ERR>StepIn error: ${err.message}\n`));
+				this.sendResponse(response);
+				if (err.finished) {
+					this.sendEvent(new TerminatedEvent());
+				}
+			});
+	}
+
 	/**
 	 * Restart
 	 */
@@ -392,30 +435,124 @@ class PerlDebugSession extends DebugSession {
 	}
 
 	/**
+	 * Evaluate hover
+	 */
+	private evaluateHover(response: DebugProtocol.EvaluateResponse, args: DebugProtocol.EvaluateArguments) {
+		if (/^[\$|\@]/.test(args.expression)) {
+			const expression = args.expression.replace(/\.(\'\w+\'|\w+)/g, (...a) => `->{${a[1]}}`);
+
+			this.perlDebugger.getExpressionValue(expression)
+				.then(result => {
+					if (/^HASH/.test(result)) {
+						response.body = {
+							result: result,
+							variablesReference: this._variableHandles.create(result),
+							type: 'string'
+						};
+					} else {
+						response.body = {
+							result: result,
+							variablesReference: 0
+						};
+					}
+					this.sendResponse(response);
+				})
+				.catch(() => {
+					response.body = {
+						result: undefined,
+						variablesReference: 0
+					};
+					this.sendResponse(response);
+				});
+		} else {
+			this.sendResponse(response);
+		}
+	}
+
+
+	/**
+	 * Evaluate command line
+	 */
+	private evaluateCommandLine(response: DebugProtocol.EvaluateResponse, args: DebugProtocol.EvaluateArguments) {
+		this.perlDebugger.request(args.expression)
+			.then((res) => {
+				if (res.data.length > 1) {
+					res.data.forEach((line) => {
+						this.sendEvent(new OutputEvent(`> ${line}\n`));
+					});
+					response.body = {
+						result: `Result:`,
+						variablesReference: 0,
+					};
+				} else {
+					response.body = {
+						result: `${res.data[0]}`,
+						variablesReference: 0
+					};
+				}
+				this.sendResponse(response);
+			});
+	};
+
+	/**
+	 * Fetch expression value
+	 */
+	async fetchExpressionRequest(clientExpression): Promise<any> {
+
+		const isVariable = /^([\$|@|%])([a-zA-Z0-9_\'\.]+)$/.test(clientExpression);
+
+		const expression = isVariable ? clientExpression.replace(/\.(\'\w+\'|\w+)/g, (...a) => `->{${a[1]}}`) : clientExpression;
+
+		let value = await this.perlDebugger.getExpressionValue(expression);
+		if (/^Can\'t use an undefined value as a HASH reference/.test(value)) {
+			value = undefined;
+		}
+
+		const reference = isVariable ? await this.perlDebugger.getVariableReference(expression) : null;
+		if (typeof value !== 'undefined' && /^HASH|ARRAY/.test(reference)) {
+			return {
+				value: reference,
+				reference: reference,
+			};
+		}
+		return {
+			value: `${value} (${isVariable})`,
+			reference: null,
+		};
+	}
+
+	/**
+	 * Evaluate watch
+	 */
+	protected evaluateWatch(response: DebugProtocol.EvaluateResponse, args: DebugProtocol.EvaluateArguments): void {
+		// Clear watch if last request wasn't setting a watch?
+		this.fetchExpressionRequest(args.expression)
+			.then(result => {
+				// this.sendEvent(new OutputEvent(`${args.expression}=${result.value} ${typeof result.value} ${result.reference}$')\n`));
+				if (typeof result.value !== 'undefined') {
+					response.body = {
+						result: result.value,
+						variablesReference: result.reference === null ? 0 : this._variableHandles.create(result.reference),
+					};
+				}
+				this.sendResponse(response);
+			})
+			.catch(() => {});
+	}
+
+	/**
 	 * Evaluate
 	 */
 	protected evaluateRequest(response: DebugProtocol.EvaluateResponse, args: DebugProtocol.EvaluateArguments): void {
 
 		if (args.context === 'repl') {
-			this.perlDebugger.request(args.expression)
-				.then((res) => {
-					if (res.data.length > 1) {
-						res.data.forEach((line) => {
-							this.sendEvent(new OutputEvent(`> ${line}\n`));
-						});
-						response.body = {
-							result: `Result:`,
-							variablesReference: 0
-						};
-					} else {
-						response.body = {
-							result: `${res.data[0]}`,
-							variablesReference: 0
-						};
-					}
-					this.sendResponse(response);
-				});
+			this.evaluateCommandLine(response, args);
+		} else if (args.context === 'hover') {
+			this.evaluateHover(response, args);
+		} else if (args.context === 'watch') {
+			this.evaluateWatch(response, args);
 		} else {
+			this.sendEvent(new OutputEvent(`evaluate(context: '${args.context}', '${args.expression}')`));
 			response.body = {
 				result: `evaluate(context: '${args.context}', '${args.expression}')`,
 				variablesReference: 0

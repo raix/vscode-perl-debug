@@ -9,6 +9,7 @@ const initialConfigurations = {
 		type: 'perl',
 		request: 'launch',
 		name: 'Perl-Debug',
+		root: '${workspaceRoot}/',
 		program: '${workspaceRoot}/${command.AskForProgramName}',
 		stopOnEntry: true
 	}

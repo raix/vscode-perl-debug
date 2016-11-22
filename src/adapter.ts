@@ -258,6 +258,9 @@ export class perlDebuggerConnection {
 			}
 		});
 
+		// Depend on the data dumper for the watcher
+		// await this.streamCatcher.request('use Data::Dumper');
+
 		// Listen for a ready signal
 		return this.parseResponse(await this.streamCatcher.isReady()
 			.then(data => {
@@ -375,6 +378,11 @@ export class perlDebuggerConnection {
 		return res.data[0];
 	}
 
+	async getExpressionValue(expression: string): Promise<string> {
+		const res = await this.request(`print STDERR ${expression}`);
+		return res.data.pop();
+	}
+
 	/**
 	 * Prints out a nice indent formatted list of variables with
 	 * array references resolved.
@@ -446,6 +454,19 @@ export class perlDebuggerConnection {
 		});
 
 		return result;
+	}
+
+	async watchExpression(expression) {
+		// Brute force this a bit...
+		return Promise.all([
+			this.request(`W ${expression}`),
+			this.request(`w ${expression}`),
+		])
+		.then(res => res.pop());
+	}
+
+	async clearAllWatchers() {
+		return this.request('W *');
 	}
 
 	async destroy() {
