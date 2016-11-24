@@ -3,13 +3,14 @@
 import {
 	DebugSession,
 	InitializedEvent, TerminatedEvent, StoppedEvent, BreakpointEvent, OutputEvent, Event,
-	Thread, StackFrame, Scope, Source, Handles, Breakpoint
+	Thread, StackFrame, Scope, Source, Handles, Breakpoint, Variable
 } from 'vscode-debugadapter';
 import {DebugProtocol} from 'vscode-debugprotocol';
 import {readFileSync} from 'fs';
 import {basename, dirname, join} from 'path';
 import {spawn, ChildProcess} from 'child_process';
 import { perlDebuggerConnection } from './adapter';
+import { variableType, ParsedVariable, ParsedVariableScope, resolveVariable } from './variableParser';
 
 /**
  * This interface should always match the schema found in the perl-debug extension manifest.
@@ -103,7 +104,9 @@ class PerlDebugSession extends DebugSession {
 				response.body.supportsEvaluateForHovers = true;
 
 				// make VS Code to show a 'step back' button
-				response.body.supportsStepBack = true;
+				response.body.supportsStepBack = false;
+
+				response.body.supportsFunctionBreakpoints = true;
 
 				this.sendResponse(response);
 			});
@@ -194,16 +197,10 @@ class PerlDebugSession extends DebugSession {
 	}
 
 
-    protected stepOutRequest(response: DebugProtocol.StepOutResponse, args: DebugProtocol.StepOutArguments): void {
-		this.sendEvent(new OutputEvent(`ERR>step out not implemented\n`));
-		this.sendResponse(response);
-		this.sendEvent(new StoppedEvent("breakpoint", PerlDebugSession.THREAD_ID));
-	}
 
 
-
-    protected setVariableRequest(response: DebugProtocol.SetVariableResponse, args: DebugProtocol.SetVariableArguments): void{
-		this.sendEvent(new OutputEvent(`ERR>setVariableRequest not implemented\n`));
+	protected setFunctionBreakPointsRequest(response: DebugProtocol.SetFunctionBreakpointsResponse, args: DebugProtocol.SetFunctionBreakpointsArguments): void {
+		this.sendEvent(new OutputEvent(`ERR>setFunctionBreakPointsRequest not implemented\n`));
 		this.sendResponse(response);
 		this.sendEvent(new StoppedEvent("breakpoint", PerlDebugSession.THREAD_ID));
 	}
@@ -212,6 +209,57 @@ class PerlDebugSession extends DebugSession {
 /**
  * Implemented
  */
+
+	/**
+	 * Set variable
+	 */
+    protected setVariableRequest(response: DebugProtocol.SetVariableResponse, args: DebugProtocol.SetVariableArguments): void {
+		// Get type of variable contents
+		const name = this.getVariableName(args.name, args.variablesReference)
+			.then((variableName) => {
+
+				return this.perlDebugger.request(`${variableName}='${args.value}'`)
+					.then(() => {
+						response.body = {
+							value: args.value,
+							type: variableType(args.value),
+						};
+						this.sendResponse(response);
+					});
+			})
+			.catch((err) => {
+				this.sendEvent(new OutputEvent(`ERR>setVariableRequest error: ${err.message}\n`));
+				this.sendResponse(response);
+			});
+	}
+
+	/**
+	 * Step out
+	 */
+    protected stepOutRequest(response: DebugProtocol.StepOutResponse, args: DebugProtocol.StepOutArguments): void {
+		this.perlDebugger.request('r')
+			.then((res) => {
+				if (res.ln) {
+					this._currentLine = this.convertDebuggerLineToClient(res.ln);
+				}
+
+				this.sendResponse(response);
+
+				if (res.finished) {
+					this.sendEvent(new TerminatedEvent());
+				} else {
+					this.sendEvent(new StoppedEvent("step", PerlDebugSession.THREAD_ID));
+				}
+				// no more lines: run to end
+			})
+			.catch(err => {
+				this.sendEvent(new OutputEvent(`ERR>StepOut error: ${err.message}\n`));
+				this.sendResponse(response);
+				if (err.finished) {
+					this.sendEvent(new TerminatedEvent());
+				}
+			});
+	}
 
 	/**
 	 * Step in
@@ -396,6 +444,18 @@ class PerlDebugSession extends DebugSession {
 		this.sendResponse(response);
 	}
 
+	private getVariableName(name: string, variablesReference: number): Promise<string> {
+		let id = this._variableHandles.get(variablesReference);
+		return this.perlDebugger.variableList({
+			global_0: 0,
+			local_0: 1,
+			closure_0: 2,
+		})
+		.then(variables => {
+			return resolveVariable(name, id, variables);
+		});
+	}
+
 	/**
 	 * Variable scope
 	 */
@@ -413,16 +473,17 @@ class PerlDebugSession extends DebugSession {
 				if (id != null && variables[id]) {
 					const len = variables[id].length;
 					const result = variables[id].map(variable => {
+						// Convert the parsed variablesReference into Variable complient references
 						if (variable.variablesReference === '0') {
 							variable.variablesReference = 0;
 						} else {
-							variable.variablesReference = this._variableHandles.create(variable.variablesReference);
+							variable.variablesReference = this._variableHandles.create(`${variable.variablesReference}`);
 						}
 						return variable;
 					});
 
 					response.body = {
-						variables: result
+						variables: <Variable[]>result
 					};
 					this.sendResponse(response);
 				} else {

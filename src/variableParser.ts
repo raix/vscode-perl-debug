@@ -27,9 +27,9 @@ function getIndent(text: string) {
 
 const indent = 3; // Perl debugger variable indent
 
-function variableType(value) {
-	if (/^[0-9]+/.test(value)) return 'integer';
-	if (/^[0-9.,]+/.test(value)) return 'float';
+export function variableType(value) {
+	if (/^\'?(\-)?[0-9]+\'?$/.test(value)) return 'integer';
+	if (/^\'?(\-)?[0-9.,]+\'?$/.test(value)) return 'float';
 	if (/true|false/.test(value)) return 'boolean';
 	if (/^\'/.test(value)) return 'string';
 	if (/^ARRAY/.test(value)) return 'array';
@@ -37,21 +37,100 @@ function variableType(value) {
 	return 'unknown';
 }
 
-function variableReference(value) {
+function variableReference(value: string): string {
 	if (/^ARRAY|HASH/.test(value)) return value;
 	return '0';
 }
 
-function createVariable(name, value) {
+function cleanString(value: string): string {
+	if (/^\'/.test(value) && /\'$/.test(value)) {
+		return value.replace(/^\'/, '').replace(/\'$/, '')
+	}
+	return value;
+}
+
+export interface ParsedVariable {
+	name: string,
+	value: string,
+	type: string,
+	variablesReference: number | string,
+}
+
+export interface ParsedVariableScope {
+	[id: string]: ParsedVariable[]
+}
+
+function createVariable(key: string, val: string): ParsedVariable {
+	const name: string = cleanString(key);
+	const value: string = cleanString(val);
 	return {
 		name,
 		value,
-		type: variableType(value),
+		type: variableType(val),
 		variablesReference: variableReference(value)
 	};
 }
 
-export default function(data: string[], scopeName: string = '0') {
+interface VariableSearchResult {
+	variable: ParsedVariable,
+	parentName: string | number,
+}
+
+function findVariableReference(variables: ParsedVariableScope, variablesReference: string): VariableSearchResult | null {
+	const variableScopes = Object.keys(variables);
+	let parentName = 0;
+	let variable: ParsedVariable | null = null;
+	for (let i = 0; i < variableScopes.length; i++) {
+		const parentName = variableScopes[i];
+		const scope = variables[parentName];
+		for (let b = 0; b < scope.length; b++) {
+			variable = scope[b];
+			// Check if we found the needle
+			if (variable.variablesReference === variablesReference) {
+				return {
+					variable,
+					parentName,
+				}
+			}
+		}
+	}
+	return null;
+}
+
+const topScope = /global_0|local_0|closure_0/;
+
+export function resolveVariable(name, variablesReference, variables) {
+	// Resolve variables
+	let limit = 0;
+	let id = variablesReference;
+	let key = name;
+	const result = [];
+
+	while (limit < 50 && !topScope.test(id)) {
+		const parent = findVariableReference(variables, id);
+		if (!parent) {
+			throw new Error(`Cannot find variable "${id}"`);
+		}
+		if (parent.variable.type == 'array') {
+			result.unshift(`[${key}]`);
+		} else if (parent.variable.type == 'object') {
+			result.unshift(`{${key}}`);
+		} else {
+			throw new Error('This dosnt look right');
+		}
+
+		id = parent.parentName;
+		key = parent.variable.name;
+
+		limit++;
+	}
+
+	result.unshift(key);
+
+	return result.join('->');
+}
+
+export default function(data: string[], scopeName: string = '0'): ParsedVariableScope {
 	const result = {};
 	const context: string[] = [scopeName];
 	let lastReference = scopeName;

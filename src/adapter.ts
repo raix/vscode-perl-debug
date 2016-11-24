@@ -2,7 +2,7 @@ import {join} from 'path';
 import {spawn} from 'child_process';
 import {StreamCatcher} from './streamCatcher';
 import * as RX from './regExp';
-import variableParser from './variableParser';
+import variableParser, { ParsedVariable, ParsedVariableScope } from './variableParser';
 
 interface ResponseError {
 	filename: string,
@@ -46,7 +46,7 @@ function variableType(key: string, val: string): string {
 		return 'string';
 	}
 	if (/^([0-9\,\.]+)$/) {
-		return 'number';
+		return 'integer';
 	}
 
 	return 'Unknown';
@@ -411,16 +411,16 @@ export class perlDebuggerConnection {
 		return result;
 	}
 
-	async getVariableList(level: number, scopeName?: string) {
+	async getVariableList(level: number, scopeName?: string): Promise<ParsedVariableScope> {
 		const variableOutput = await this.requestVariableOutput(level);
 		//console.log('RESOLVED:');
 		//console.log(variableOutput);
 		return variableParser(variableOutput, scopeName);
 	}
 
-	async variableList(scopes) {
+	async variableList(scopes): Promise<ParsedVariableScope> {
 		const keys = Object.keys(scopes);
-		let result = {};
+		let result: ParsedVariableScope = {};
 
 		for (let i = 0; i < keys.length; i++) {
 			const name = keys[i];

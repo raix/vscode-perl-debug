@@ -69,9 +69,15 @@
         "configurationAttributes": {
           "launch": {
             "required": [
+              "root",
               "program"
             ],
             "properties": {
+              "root": {
+                "type": "string",
+                "description": "Workspace root.",
+                "default": "${workspaceRoot}/"
+              },
               "program": {
                 "type": "string",
                 "description": "Absolute path to perl file.",

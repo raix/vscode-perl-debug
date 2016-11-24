@@ -1,7 +1,7 @@
 import assert = require('assert');
 import asyncAssert from './asyncAssert';
 import * as Path from 'path';
-import variableParser from '../variableParser';
+import variableParser, { resolveVariable } from '../variableParser';
 
 const data = [ '$bar = \'bar\'',
   '$hello = HASH(0x7fd2689527f0)',
@@ -10,7 +10,7 @@ const data = [ '$bar = \'bar\'',
   '   \'really\' => \'true\'',
   '$i = 12',
   '$obj = HASH(0x7fd26896ecb0)',
-  '   8 => 9',
+  '   8 => \'-9\'',
   '   \'bar\' => HASH(0x7fd2689527f0)',
   '      \'bar\' => 12',
   '      \'foo\' => \'bar\'',
@@ -41,9 +41,9 @@ const data = [ '$bar = \'bar\'',
 ];
 
 const expectedResult = {
-    '0':
+    'local_0':
         [ { name: '$bar',
-        value: '\'bar\'',
+        value: 'bar',
         type: 'string',
         variablesReference: '0' },
         { name: '$hello',
@@ -71,83 +71,83 @@ const expectedResult = {
         type: 'array',
         variablesReference: 'ARRAY(0x7fd269242b10)' } ],
     'HASH(0x7fd2689527f0)':
-        [ { name: '\'bar\'',
+        [ { name: 'bar',
         value: '12',
         type: 'integer',
         variablesReference: '0' },
-        { name: '\'foo\'',
-        value: '\'bar\'',
+        { name: 'foo',
+        value: 'bar',
         type: 'string',
         variablesReference: '0' },
-        { name: '\'really\'',
-        value: '\'true\'',
+        { name: 'really',
+        value: 'true',
         type: 'boolean',
         variablesReference: '0' },
-        { name: '\'bar\'',
+        { name: 'bar',
         value: '12',
         type: 'integer',
         variablesReference: '0' },
-        { name: '\'foo\'',
-        value: '\'bar\'',
+        { name: 'foo',
+        value: 'bar',
         type: 'string',
         variablesReference: '0' },
-        { name: '\'really\'',
-        value: '\'true\'',
+        { name: 'really',
+        value: 'true',
         type: 'boolean',
         variablesReference: '0' } ],
     'HASH(0x7fd26896ecb0)':
         [ { name: '8',
-        value: '9',
+        value: '-9',
         type: 'integer',
         variablesReference: '0' },
-        { name: '\'bar\'',
+        { name: 'bar',
         value: 'HASH(0x7fd2689527f0)',
         type: 'object',
         variablesReference: 'HASH(0x7fd2689527f0)' },
-        { name: '\'foo\'',
-        value: '\'bar\'',
+        { name: 'foo',
+        value: 'bar',
         type: 'string',
         variablesReference: '0' },
-        { name: '\'list\'',
+        { name: 'list',
         value: 'ARRAY(0x7fd269242a50)',
         type: 'array',
         variablesReference: 'ARRAY(0x7fd269242a50)' },
-        { name: '\'ownObj\'',
+        { name: 'ownObj',
         value: 'HASH(0x7fd26892c6c0)',
         type: 'object',
         variablesReference: 'HASH(0x7fd26892c6c0)' },
-        { name: '\'ownlist\'',
+        { name: 'ownlist',
         value: '7',
         type: 'integer',
         variablesReference: '0' } ],
     'ARRAY(0x7fd269242a50)':
         [ { name: '0',
-        value: '\'a\'',
+        value: 'a',
         type: 'string',
         variablesReference: '0' },
         { name: '1',
-        value: '\'\\\'b\'',
+        value: '\\\'b',
         type: 'string',
         variablesReference: '0' },
         { name: '2',
-        value: '\'c\'',
+        value: 'c',
         type: 'string',
         variablesReference: '0' },
         { name: '0',
-        value: '\'a\'',
+        value: 'a',
         type: 'string',
         variablesReference: '0' },
         { name: '1',
-        value: '\'\\\'b\'',
+        value: '\\\'b',
         type: 'string',
         variablesReference: '0' },
         { name: '2',
-        value: '\'c\'',
+        value: 'c',
         type: 'string',
         variablesReference: '0' } ],
     'HASH(0x7fd26892c6c0)':
-        [ { name: '\'ownFoo\'',
-        value: '\'own?\'',
+        [ { name: 'ownFoo',
+        value: 'own?',
         type: 'string',
         variablesReference: '0' } ],
     'ARRAY(0x7fd269242a68)':
@@ -165,15 +165,15 @@ const expectedResult = {
         variablesReference: '0' } ],
     'ARRAY(0x7fd269242b10)':
         [ { name: '0',
-        value: '\'a\'',
+        value: 'a',
         type: 'string',
         variablesReference: '0' },
         { name: '1',
-        value: '\'\\\'b\'',
+        value: '\\\'b',
         type: 'string',
         variablesReference: '0' },
         { name: '2',
-        value: '\'c\'',
+        value: 'c',
         type: 'string',
         variablesReference: '0' },
         { name: '3',
@@ -192,8 +192,18 @@ const expectedResult = {
 
 suite('variableParser', () => {
 	test('works', () => {
-		const result = variableParser(data);
+		const result = variableParser(data, 'local_0');
 
 		assert.deepEqual(result, expectedResult);
+	});
+});
+
+suite('resolveVariable', () => {
+	test('works', () => {
+        const variables = variableParser(data, 'local_0');
+		assert.equal(resolveVariable('8', 'HASH(0x7fd26896ecb0)', variables), '$obj->{8}');
+		assert.equal(resolveVariable('$bar', 'local_0', variables), '$bar');
+		assert.equal(resolveVariable('8', 'ARRAY(0x7fd269242a50)', variables), '@list1->[8]');
+		assert.equal(resolveVariable('ownFoo', 'HASH(0x7fd26892c6c0)', variables), '$obj->{ownObj}->{ownFoo}');
 	});
 });
