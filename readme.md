@@ -18,7 +18,7 @@ Notes:
 * Variable values on hover doesn't work all the time due to the lack of info, eg. `$obj->{ownObj}->{ownFoo}` hovering over `$obj` will work fine - but the children are not parsed correctly - to solve this we might need to parse the line of code.
 * Function breakpoints not working / added - need to figure out if possible
 
-#### v0.1.0 2016-11-27
+#### v0.1.1 2016-11-27
 
 * Step in
 * Step out
