@@ -44,6 +44,7 @@ class PerlDebugSession extends DebugSession {
 	private _sourceLines = new Array<string>();
 
 	private _breakPoints = new Map<string, DebugProtocol.Breakpoint[]>();
+	private _functionBreakPoints: string[] = [];
 
 	private _variableHandles = new Handles<string>();
 
@@ -74,20 +75,11 @@ class PerlDebugSession extends DebugSession {
 
 		this.perlDebugger.onException = (res) => {
 			// xxx: for now I need more info, code to go away...
-			this.sendEvent(new OutputEvent(`Exception...:${res.data.length}\n`, 'stderr'));
-
-			res.data.forEach((val, i) => {
-				this.sendEvent(new OutputEvent(`Exception...:${i}:${val}\n`, 'stderr'));
-			});
-			const parsed = res.data.join('\n').match(/line ([0-9]+)\.\n?$/);
-			const ln = parsed ? parsed[1] : 0;
-			this._currentLine = +ln - 1;
 			this.sendEvent(new StoppedEvent("exception", PerlDebugSession.THREAD_ID));
-			// this.sendEvent(new OutputEvent(`"${res.data.join(', ')}"\n`, 'stderr'));
-			this.sendEvent(new OutputEvent(`Exception...2\n`, 'stderr'));
+		};
 
-			this.sendEvent(new OutputEvent(`${JSON.stringify(parsed)}\n`, 'stderr'));
-			this.sendEvent(new OutputEvent(`exception in line: ${ln}\n`, 'stderr'));
+		this.perlDebugger.onTermination = (res) => {
+			this.sendEvent(new TerminatedEvent());
 		};
 
 		this.perlDebugger.initializeRequest()
@@ -106,7 +98,7 @@ class PerlDebugSession extends DebugSession {
 				// make VS Code to show a 'step back' button
 				response.body.supportsStepBack = false;
 
-				response.body.supportsFunctionBreakpoints = true;
+				response.body.supportsFunctionBreakpoints = false;
 
 				this.sendResponse(response);
 			});
@@ -199,12 +191,52 @@ class PerlDebugSession extends DebugSession {
 
 
 
-	protected setFunctionBreakPointsRequest(response: DebugProtocol.SetFunctionBreakpointsResponse, args: DebugProtocol.SetFunctionBreakpointsArguments): void {
-		this.sendEvent(new OutputEvent(`ERR>setFunctionBreakPointsRequest not implemented\n`));
-		this.sendResponse(response);
-		this.sendEvent(new StoppedEvent("breakpoint", PerlDebugSession.THREAD_ID));
+	private async setFunctionBreakPointsRequestAsync(response: DebugProtocol.SetFunctionBreakpointsResponse, args: DebugProtocol.SetFunctionBreakpointsArguments): Promise<DebugProtocol.SetFunctionBreakpointsResponse> {
+		const breakpoints: string[] = [];
+		const newBreakpoints: string[] = args.breakpoints.map(bp => { return bp.name });
+		const neoBreakpoints: DebugProtocol.FunctionBreakpoint[] = [];
+
+		for (var i = 0; i < this._functionBreakPoints.length; i++) {
+			const name = this._functionBreakPoints[i];
+			if (newBreakpoints.indexOf(name) < 0) {
+				this.sendEvent(new OutputEvent(`Remove ${name}\n`));
+				await this.perlDebugger.request(`B ${name}`);
+			}
+		}
+
+		for (var i = 0; i < args.breakpoints.length; i++) {
+			const bp = args.breakpoints[i];
+			if (this._functionBreakPoints.indexOf(bp.name) < 0) {
+				breakpoints.push(bp.name);
+				const res = await this.perlDebugger.request(`b ${bp.name}`);
+
+				this.sendEvent(new OutputEvent(`Add ${bp.name}\n`));
+				const neoBreakpoint = <DebugProtocol.FunctionBreakpoint>{name: bp.name};
+				neoBreakpoints.push(neoBreakpoint);
+				response.body.breakpoints = [new Breakpoint(true, 4, 0, new Source('Module.pm', join(this.filepath, 'Module.pm')) )];
+				this.sendResponse(response);
+
+				this.sendEvent(new OutputEvent(`Add ${bp.name}\n`));
+			} else {
+				neoBreakpoints.push(bp);
+			}
+		}
+
+		this._functionBreakPoints = breakpoints;
+
+		return response;
 	}
 
+	protected setFunctionBreakPointsRequest(response: DebugProtocol.SetFunctionBreakpointsResponse, args: DebugProtocol.SetFunctionBreakpointsArguments): void {
+		this.setFunctionBreakPointsRequestAsync(response, args)
+			.then(res => {
+				this.sendResponse(response);
+			})
+			.catch(err => {
+				this.sendEvent(new OutputEvent(`ERR>setFunctionBreakPointsRequest error: ${err.message}\n`));
+				this.sendResponse(response);
+			});
+	}
 
 /**
  * Implemented
@@ -630,7 +662,7 @@ class PerlDebugSession extends DebugSession {
 		const stacktrace = await this.perlDebugger.getStackTrace();
 		const frames = new Array<StackFrame>();
 		stacktrace.forEach((trace, i) => {
-			frames.push(new StackFrame(i, `${trace.caller}`, new Source(basename(trace.filename),
+			frames.unshift(new StackFrame(i, `${trace.caller}`, new Source(basename(trace.filename),
 				this.convertDebuggerPathToClient(trace.filename)),
 				trace.ln, 0));
 		});

@@ -39,9 +39,9 @@ export const lastCommandLine = {
 	}
 };
 
-export const fileMatch = /^[a-zA-Z]+::\(([a-zA-Z._-]+):([0-9]+)\):/;
+export const fileMatch = /^[a-zA-Z]+::\(([a-zA-Z\._-]+):([0-9]+)\):/;
 
-export const fileMatchException = /at ([a-zA-Z._-]+) line ([0-9]+)\./;
+export const fileMatchException = /at ([a-zA-Z\._-]+) line ([0-9]+)\./;
 
 export const codeErrorSyntax = /^syntax error at (\S+) line ([0-9]+), near ([\S|\s]+)/;
 
