@@ -38,13 +38,19 @@ Notes:
 
 ### Credits
 
-Credits goes to for making an awesome editor and a nice getting started mock debugger: [https://github.com/Microsoft/vscode-mock-debug.git](https://github.com/Microsoft/vscode-mock-debug.git)
+Credits goes to Microsoft for making an awesome editor and a nice getting started mock debugger: [https://github.com/Microsoft/vscode-mock-debug.git](https://github.com/Microsoft/vscode-mock-debug.git)
 
 ### Disclaimer
 
 I'm in no way a perl expert - if you find bugs in the vs / perl debugger integration or want to contribute with code please don't hesitate.
 
+It's not yet full featured,
 
+Todo:
+* settings
+* battle test
+* autocomplete?
+* syntax check?
 
 Kind regards
 
