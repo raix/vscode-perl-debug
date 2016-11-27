@@ -1,7 +1,7 @@
 {
   "name": "perl-debug",
   "displayName": "Perl Debug",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "publisher": "mortenhenriksen",
   "description": "Perl debug adapter for VS Code.",
   "author": {
