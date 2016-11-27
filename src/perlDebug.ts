@@ -662,7 +662,7 @@ class PerlDebugSession extends DebugSession {
 		const stacktrace = await this.perlDebugger.getStackTrace();
 		const frames = new Array<StackFrame>();
 		stacktrace.forEach((trace, i) => {
-			frames.unshift(new StackFrame(i, `${trace.caller}`, new Source(basename(trace.filename),
+			frames.push(new StackFrame(i, `${trace.caller}`, new Source(basename(trace.filename),
 				this.convertDebuggerPathToClient(trace.filename)),
 				trace.ln, 0));
 		});
