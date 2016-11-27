@@ -47,11 +47,6 @@ I'm in no way a perl expert - if you find bugs in the vs / perl debugger integra
 It's not yet full featured,
 
 Todo:
-* watch
-* hover values
-* step in / out
-* reverse continue
-* step back
 * settings
 * battle test
 * autocomplete?
