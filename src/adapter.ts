@@ -19,6 +19,10 @@ interface Variable {
 	variablesReference: number,
 }
 
+interface LaunchOptions {
+	exec?: string;
+}
+
 export interface RequestResponse {
 	data?: string[],
 	orgData: string[],
@@ -88,7 +92,7 @@ export class perlDebuggerConnection {
 
 	async initializeRequest() {}
 
-	logOutput(data) {
+	logOutput(data: string) {
 		if (typeof this.onOutput === 'function') {
 			try {
 				this.onOutput(data);
@@ -220,7 +224,7 @@ export class perlDebuggerConnection {
 		return res;
 	}
 
-	async launchRequest(filename: string, filepath: string, args: string[] = []): Promise<RequestResponse> {
+	async launchRequest(filename: string, filepath: string, args: string[] = [], options:LaunchOptions = {}): Promise<RequestResponse> {
 		this.filename = filename;
 		this.filepath = filepath;
 		this.currentfile = filename;
@@ -228,14 +232,22 @@ export class perlDebuggerConnection {
 
 		if (this.debug) console.log(`Launch "perl -d ${sourceFile}" in "${filepath}"`);
 
+		const perlCommand = options.exec || 'perl';
+
+		const commandArgs = [ '-d', filename].concat(args);
+		this.logOutput( `${perlCommand} ${commandArgs.join(' ')}`);
+
 		// xxx: add failure handling
-		this.perlDebugger = spawn('perl', [ '-d', filename].concat(args), {
+		this.perlDebugger = spawn(perlCommand, commandArgs, {
 			detached: true,
+			shell: true,
 			cwd: filepath,
 		});
 
 		this.perlDebugger.on('error', (err) => {
 			if (this.debug) console.log('error:', err);
+			this.logOutput( `Error`);
+			this.logOutput( err );
 		});
 
 		this.streamCatcher.launch(this.perlDebugger.stdin, this.perlDebugger.stderr);
@@ -249,6 +261,11 @@ export class perlDebuggerConnection {
 		});
 
 		this.perlDebugger.on('close', (code) => {
+			if (this.streamCatcher.ready) {
+				this.logOutput(`Debugger connection closed`);
+			} else {
+				this.logOutput(`Could not connect to debugger, connection closed`);
+			}
 			if (typeof this.onClose === 'function') {
 				try {
 					this.onClose(code);

@@ -18,6 +18,16 @@ Notes:
 * Variable values on hover doesn't work all the time due to the lack of info, eg. `$obj->{ownObj}->{ownFoo}` hovering over `$obj` will work fine - but the children are not parsed correctly - to solve this we might need to parse the line of code.
 * Function breakpoints not working / added - need to figure out if possible
 
+### Settings
+
+* `exec` Can be set to a specific perl binary *defaults to "perl"*
+* `inc` Can be an array of strings / include paths
+
+#### v0.1.2 2016-11-28
+* Added ability to set include directories in the launch config
+* Added the ability to set a specific path to the perl executable
+* Run the debugger with `shell` enabled - hope this will solve [#1](https://github.com/raix/vscode-perl-debug/issues/1)
+
 #### v0.1.1 2016-11-27
 
 * Step in

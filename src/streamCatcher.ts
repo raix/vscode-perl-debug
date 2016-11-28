@@ -21,7 +21,7 @@ export class StreamCatcher {
 	private buffer: string[] = [''];
 
 	// xxx: consider removing ready - the user should not have to care about that...
-	private ready: boolean = false;
+	public ready: boolean = false;
 	private readyListeners = [];
 	private readyResponse: string[];
 

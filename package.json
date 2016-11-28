@@ -1,7 +1,7 @@
 {
   "name": "perl-debug",
   "displayName": "Perl Debug",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "mortenhenriksen",
   "description": "Perl debug adapter for VS Code.",
   "author": {
@@ -73,6 +73,11 @@
               "program"
             ],
             "properties": {
+              "exec": {
+                "type": "string",
+                "description": "Perl executable.",
+                "default": "perl"
+              },
               "root": {
                 "type": "string",
                 "description": "Workspace root.",
@@ -87,6 +92,11 @@
                 "type": "boolean",
                 "description": "Automatically stop after launch.",
                 "default": true
+              },
+              "inc": {
+                "type": "array",
+                "description": "List of include directories.",
+                "default": []
               }
             }
           }
