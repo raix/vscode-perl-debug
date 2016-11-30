@@ -23,6 +23,9 @@ Notes:
 * `exec` Can be set to a specific perl binary *defaults to "perl"*
 * `inc` Can be an array of strings / include paths
 
+#### v0.1.3 2016-11-30
+* Fix order of debugger arguments for include to work
+
 #### v0.1.2 2016-11-28
 * Added ability to set include directories in the launch config
 * Added the ability to set a specific path to the perl executable

@@ -234,13 +234,12 @@ export class perlDebuggerConnection {
 
 		const perlCommand = options.exec || 'perl';
 
-		const commandArgs = [ '-d', filename].concat(args);
+		const commandArgs = [].concat(args, [ '-d', filename]);
 		this.logOutput( `${perlCommand} ${commandArgs.join(' ')}`);
 
 		// xxx: add failure handling
 		this.perlDebugger = spawn(perlCommand, commandArgs, {
 			detached: true,
-			shell: true,
 			cwd: filepath,
 		});
 

@@ -120,8 +120,8 @@ class PerlDebugSession extends DebugSession {
 
 		this.filename = basename(this._sourceFile);
 		this.filepath = dirname(this._sourceFile);
-		const inc = args.inc && args.inc.length ? args.inc.map(directory => `-I${directory}`).join(' ') : '';
-		this.perlDebugger.launchRequest(this.filename, this.filepath, [inc], { exec: args.exec })
+		const inc = args.inc && args.inc.length ? args.inc.map(directory => `-I${directory}`) : [];
+		this.perlDebugger.launchRequest(this.filename, this.filepath, inc, { exec: args.exec })
 			.then((res) => {
 				if (args.stopOnEntry) {
 					if (res.ln) {
