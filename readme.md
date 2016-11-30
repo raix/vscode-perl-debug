@@ -1,4 +1,4 @@
-# VS Code Perl Debug
+# VS Code Perl Debug [![Build Status](https://travis-ci.org/raix/vscode-perl-debug.svg?branch=master)](https://travis-ci.org/raix/vscode-perl-debug)
 
 A minimalistic debugger for perl in vs code.
 
