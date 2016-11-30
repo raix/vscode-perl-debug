@@ -6,6 +6,10 @@ node_js:
   - "6"
 perl:
   - "5.18"
+cache:
+  bundler: true
+  directories:
+  - node_modules # NPM packages
 before_install:
     - perl --version
     - node --version
