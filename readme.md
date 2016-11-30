@@ -23,32 +23,6 @@ Notes:
 * `exec` Can be set to a specific perl binary *defaults to "perl"*
 * `inc` Can be an array of strings / include paths
 
-#### v0.1.3 2016-11-30
-* Fix order of debugger arguments for include to work
-
-#### v0.1.2 2016-11-28
-* Added ability to set include directories in the launch config
-* Added the ability to set a specific path to the perl executable
-* Run the debugger with `shell` enabled - hope this will solve [#1](https://github.com/raix/vscode-perl-debug/issues/1)
-
-#### v0.1.1 2016-11-27
-
-* Step in
-* Step out
-* Set variable from inspector
-* Watch variables and expressions
-* Initial hover added
-* Failed to implement function breakpoints *(disabled for now)*
-
-#### v0.0.3 2016-11-20
-
-* Initial version
-* Breakpoints working
-* Stacktrace
-* Variable inspection
-* Continue
-* Step
-
 ### Credits
 
 Credits goes to Microsoft for making an awesome editor and a nice getting started mock debugger: [https://github.com/Microsoft/vscode-mock-debug.git](https://github.com/Microsoft/vscode-mock-debug.git)
