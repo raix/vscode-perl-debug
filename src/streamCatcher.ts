@@ -45,9 +45,9 @@ export class StreamCatcher {
 		let lastBuffer = '';
 		output.on('data', (buffer) => {
 			const data = lastBuffer + buffer.toString();
-			const lines = data.split(/\n/);
+			const lines = data.split(/\r\n|\r|\n/);
 
-			if (/\n$/.test(data) || RX.lastCommandLine.test(lines[lines.length - 1])) {
+			if (/\r\n|\r|\n$/.test(data) || RX.lastCommandLine.test(lines[lines.length - 1])) {
 				lastBuffer = '';
 			} else {
 				lastBuffer = lines.pop();
