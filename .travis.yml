@@ -4,7 +4,8 @@ os:
   - osx
 node_js:
   - "6"
+perl:
+  - "5.18"
 before_install:
-    - perlbrew install perl-5.18.2
     - perl --version
     - node --version
