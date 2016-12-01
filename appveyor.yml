@@ -7,7 +7,7 @@ environment:
 
 # Install scripts. (runs after repo cloning)
 install:
-  - cinst $env:perl_distribution
+  - ps: cinst $env:perl_distribution
   # - cinst strawberryperl
   # - cinst activeperl
   # Get the latest stable version of Node.js or io.js
