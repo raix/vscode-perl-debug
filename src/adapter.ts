@@ -161,6 +161,9 @@ export class perlDebuggerConnection {
 				}
 
 				if (/^Execution of (\S+) aborted due to compilation errors\.$/.test(line)) {
+					res.errors.forEach(err => {
+						if (err.type === 'SYNTAX') res.finished = true;
+					});
 					res.exception = true;
 				}
 
