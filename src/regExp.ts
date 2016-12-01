@@ -46,3 +46,6 @@ export const fileMatchException = /at ([a-zA-Z\._-]+) line ([0-9]+)\./;
 export const codeErrorSyntax = /^syntax error at (\S+) line ([0-9]+), near ([\S|\s]+)/;
 
 export const codeErrorRuntime = /([\S|\s]+) at (\S+) line ([0-9]+)\.$/;
+
+// EG. PadWalker for scope investigation
+export const codeErrorMissingModule = /^(\S) module not found - please install$/;

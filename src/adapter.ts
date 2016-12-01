@@ -412,6 +412,10 @@ export class perlDebuggerConnection {
 			return [];
 		}
 
+		if (RX.codeErrorMissingModule.test(res.data[0])) {
+			throw new Error(res.data[0]);
+		}
+
 		// Resolve all Array references
 		for (let i = 0; i < res.data.length; i++) {
 			const line = res.data[i];
