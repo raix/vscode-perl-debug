@@ -225,13 +225,14 @@ suite('Perl debugger connection', () => {
 
 		suite('getVariableList', () => {
 			test('Should get more scope variables types', async function() {
-				this.timeout(5000);
+				conn.debug = true;
+				conn.streamCatcher.debug = true;
 				await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, []);
 				await conn.setBreakPoint(23, FILE_MODULE);
 
 				await conn.continue();
 				let vars = await conn.getVariableList(1);
-				// console.log(await conn.variableList());
+				// console.log(await conn.getVariableList(1));
 
 				assert.equal(Object.keys(vars).length, 7);
 			});
