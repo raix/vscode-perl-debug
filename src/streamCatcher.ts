@@ -56,6 +56,7 @@ export class StreamCatcher {
 			if (!commandIsDone /*&& !this.ready*/ && /^win/.test(process.platform)) {
 				// Start fake done trigger - this happens on windows
 				timeout = setTimeout(() => {
+					if (!this.ready) this.readline('Use \'q\' to quit or \'R\' to restart.');
 					this.readline('   DB<0> ');
 				}, 1000);
 			}
