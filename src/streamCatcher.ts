@@ -71,7 +71,7 @@ export class StreamCatcher {
 
 	readline(line) {
 		if (this.debug) console.log('line:', line);
-		if (this.debug) console.log('data:', [...line]);
+		// if (this.debug) console.log('data:', [...line]);
 		this.buffer.push(line);
 		// Test for command end
 		if (RX.lastCommandLine.test(line)) {

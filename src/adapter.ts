@@ -231,6 +231,7 @@ export class perlDebuggerConnection {
 		this.currentfile = filename;
 		const sourceFile = join(filepath, filename);
 
+		if (this.debug) console.log(`Platform: ${process.platform}`);
 		if (this.debug) console.log(`Launch "perl -d ${sourceFile}" in "${filepath}"`);
 
 		const perlCommand = options.exec || 'perl';
