@@ -242,6 +242,10 @@ export class perlDebuggerConnection {
 		this.perlDebugger = spawn(perlCommand, commandArgs, {
 			detached: true,
 			cwd: filepath,
+			env: {
+				COLUMNS: 80,
+				LINES: 25,
+			},
 		});
 
 		this.perlDebugger.on('error', (err) => {
