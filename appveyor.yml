@@ -8,6 +8,7 @@ environment:
 # Install scripts. (runs after repo cloning)
 install:
   - ps: cinst $env:perl_distribution
+  - SET PATH=C:\strawberry\c\bin;C:\strawberry\perl\site\bin;C:\strawberry\perl\bin;%PATH%
   - ps: cpanm PadWalker
   # - cinst strawberryperl
   # - cinst activeperl
