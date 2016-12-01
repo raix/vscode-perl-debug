@@ -233,6 +233,7 @@ suite('Perl debugger connection', () => {
 				await conn.setBreakPoint(23, FILE_MODULE);
 
 				await conn.continue();
+				conn.debug = true;
 				let vars = await conn.getVariableList(1);
 
 				assert.equal(Object.keys(vars).length, 7);

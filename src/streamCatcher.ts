@@ -53,7 +53,7 @@ export class StreamCatcher {
 				clearTimeout(timeout);
 			}
 
-			if (!commandIsDone && !this.ready && /^win/.test(process.platform)) {
+			if (!commandIsDone /*&& !this.ready*/ && /^win/.test(process.platform)) {
 				// Start fake done trigger - this happens on windows
 				timeout = setTimeout(() => {
 					this.readline('   DB<0> ');
