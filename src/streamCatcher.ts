@@ -57,7 +57,7 @@ export class StreamCatcher {
 				// Start fake done trigger - this happens on windows
 				timeout = setTimeout(() => {
 					this.readline('   DB<0> ');
-				}, 2000);
+				}, 1000);
 			}
 
 			if (/\r\n|\r|\n$/.test(data) || commandIsDone) {
