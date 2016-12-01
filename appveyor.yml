@@ -10,6 +10,7 @@ install:
   - ps: cinst $env:perl_distribution
   - SET PATH=C:\strawberry\c\bin;C:\strawberry\perl\site\bin;C:\strawberry\perl\bin;%PATH%
   - ps: cpanm PadWalker
+  # - choco install strawberryperl -version 5.20.1.1
   # - cinst strawberryperl
   # - cinst activeperl
   # Get the latest stable version of Node.js or io.js
