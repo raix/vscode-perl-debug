@@ -285,17 +285,13 @@ export class perlDebuggerConnection {
 		// await this.streamCatcher.request('use Data::Dumper');
 
 		// Listen for a ready signal
-		const result = this.streamCatcher.isReady()
-			.then(data => {
-				this.logData('', data.slice(0, data.length-2));
-				return this.parseResponse(data);
-			});
+		const data = await this.streamCatcher.isReady()
+		this.logData('', data.slice(0, data.length-2));
 
 		// Get the version just after
-		this.getPerlVersion()
-			.then(version => this.perlVersion = version);
+		this.perlVersion = await this.getPerlVersion();
 
-		return result;
+		return this.parseResponse(data);
 	}
 
 	async request(command: string): Promise<RequestResponse> {
