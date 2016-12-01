@@ -405,8 +405,8 @@ export class perlDebuggerConnection {
 	 */
 	async requestVariableOutput(level: number) {
 		const variables: Variable[] = [];
-		// xxx: There seem to be an issue in perl debug or PadWalker in/outside these versions
-		const fixLevel = this.perlVersion >= '5.022000' || this.perlVersion < '5.018000';
+		// xxx: There seem to be an issue in perl debug or PadWalker in/outside these versions on linux
+		const fixLevel = process.platform === 'linux' && (this.perlVersion >= '5.022000' || this.perlVersion < '5.018000');
 		const res = await this.request(`y ${fixLevel ? level-1 : level}`);
 		const result = [];
 
