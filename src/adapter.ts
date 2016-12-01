@@ -71,6 +71,7 @@ export class perlDebuggerConnection {
 	public debug: boolean = false;
 	private perlDebugger;
 	public streamCatcher: StreamCatcher;
+	public perlVersion: string;
 
 	private filename?: string;
 	private filepath?: string;
@@ -276,13 +277,12 @@ export class perlDebuggerConnection {
 
 		// Depend on the data dumper for the watcher
 		// await this.streamCatcher.request('use Data::Dumper');
+		const result = await this.streamCatcher.isReady();
+		this.logData('', result.slice(0, result.length-2));
 
+		this.perlVersion = await this.getPerlVersion();
 		// Listen for a ready signal
-		return this.parseResponse(await this.streamCatcher.isReady()
-			.then(data => {
-				this.logData('', data.slice(0, data.length-2));
-				return data;
-			}));
+		return this.parseResponse(result);
 	}
 
 	async request(command: string): Promise<RequestResponse> {
@@ -405,7 +405,8 @@ export class perlDebuggerConnection {
 	 */
 	async requestVariableOutput(level: number) {
 		const variables: Variable[] = [];
-		const res = await this.request(`y ${level}`);
+		const fixLevel = this.perlVersion >= '5.022000';
+		const res = await this.request(`y ${fixLevel ? level-1 : level}`);
 		const result = [];
 
 		if (/^Not nested deeply enough/.test(res.data[0])) {
@@ -487,6 +488,11 @@ export class perlDebuggerConnection {
 
 	async clearAllWatchers() {
 		return this.request('W *');
+	}
+
+	async getPerlVersion(): Promise<string> {
+		const res = await this.request('p $]');
+		return res.data[0];
 	}
 
 	async destroy() {
