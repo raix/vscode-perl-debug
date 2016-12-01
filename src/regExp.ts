@@ -14,7 +14,7 @@ export const breakPoint = {
 }
 
 export function cleanLine(line: string) {
-	return line.replace(colors, '').replace(/ |\n|\t|\r/g, '');
+	return line.replace(colors, '').replace(/ |\n|\t|\r|\b/g, '');
 }
 
 export function isGarbageLine(line: string) {

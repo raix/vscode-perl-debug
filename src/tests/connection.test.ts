@@ -43,7 +43,7 @@ suite('Perl debugger connection', () => {
 
 		test('Should error when launching ' + FILE_BROKEN_SYNTAX, async () => {
 			conn.debug = true;
-			conn.streamCatcher.debug = true;
+			// conn.streamCatcher.debug = true;
 			const res = <RequestResponse>await asyncAssert.throws(conn.launchRequest(FILE_BROKEN_SYNTAX, DATA_ROOT, []));
 
 			assert.equal(res.exception, true);
@@ -217,7 +217,7 @@ suite('Perl debugger connection', () => {
 		suite('restart', () => {
 			test('Should start from the beginning', async () => {
 				conn.debug = true;
-				conn.streamCatcher.debug = true;
+				// conn.streamCatcher.debug = true;
 				let res = await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, []);
 				assert.equal(res.ln, 5);
 				res = await conn.next();
