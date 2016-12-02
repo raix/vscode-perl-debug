@@ -45,6 +45,7 @@ export class StreamCatcher {
 		let lastBuffer = '';
 		let timeout: NodeJS.Timer|null = null;
 		output.on('data', (buffer) => {
+			console.log('RAW:', buffer.toString());
 			const data = lastBuffer + buffer.toString();
 			const lines = data.split(/\r\n|\r|\n/);
 			const commandIsDone = RX.lastCommandLine.test(lines[lines.length - 1]);
@@ -53,7 +54,7 @@ export class StreamCatcher {
 				clearTimeout(timeout);
 			}
 
-			if (!commandIsDone /*&& !this.ready*/ && /^win/.test(process.platform)) {
+			if (!commandIsDone /*&& !this.ready*/ && /^Xwin/.test(process.platform)) {
 				// Start fake done trigger - this happens on windows
 				timeout = setTimeout(() => {
 					this.readline('   DB<0> ');
