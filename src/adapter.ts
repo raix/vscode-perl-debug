@@ -249,7 +249,7 @@ export class perlDebuggerConnection {
 			env: {
 				COLUMNS: 80,
 				LINES: 25,
-				TERM: 'dumb',
+				// TERM: 'dumb',
 			},
 		});
 
