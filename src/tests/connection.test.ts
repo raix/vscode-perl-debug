@@ -223,6 +223,7 @@ suite('Perl debugger connection', () => {
 				if (/^win/.test(process.platform)) {
 					// xxx: disabled this test on windows for now - it's splitting output on two
 					// lines at random - need to investigate and make the code robust
+					assert.equal(Object.keys(vars).length, 7);
 				} else {
 					assert.equal(Object.keys(vars).length, 7);
 				}
@@ -240,6 +241,7 @@ suite('Perl debugger connection', () => {
 					// xxx: On windows we ned to respawn the debugger
 					// it might be "inhibit_exit" is not working on windows
 					// causing us to workaround...
+					assert.equal(res.ln, 5);
 				} else {
 					assert.equal(res.ln, 5);
 				}
