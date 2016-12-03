@@ -55,6 +55,7 @@ export class StreamCatcher {
 			// the windows perl debugger doesn't end the current restart request so we have to
 			// simulate a proper request end.
 			if ((/^win/.test(process.platform) && RX.restartWarning.test(lastLine)) || timeout) {
+				if (this.debug && RX.restartWarning.test(lastLine)) console.log('RAW> Waiting to fake end of restart request');
 				if (timeout) {
 					clearTimeout(timeout);
 				}
