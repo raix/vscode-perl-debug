@@ -1,15 +1,18 @@
 # Test against this version of Node.js
 environment:
   nodejs_version: "6.9.1"
+  install_berry_perl: "git clone https://github.com/stevieb9/berrybrew && cd berrybrew/bin && berrybrew.exe install"
+  install_active_perl: "choco install strawberryperl -version"
+  install_berry_padwalker: "cmd /C cpanm PadWalker"
+  install_active_padwalker: "cmd /C ppm install PadWalker"
+
   matrix:
-  - perl_distribution: "strawberryperl"
-    install_padwalker: "cmd /C cpanm PadWalker"
-    install_perl: "git clone https://github.com/stevieb9/berrybrew && cd berrybrew/bin && berrybrew.exe install"
-    - version: "5.24.0_64"
-  - perl_distribution: "activeperl"
-    install_padwalker: "cmd /C ppm install PadWalker"
-    install_perl: "choco install strawberryperl -version "
-      - version: "5.24.0.2400"
+    - install_perl: $env:install_berry_perl
+      install_padwalker: $env:install_berry_padwalker
+      version: "5.24.0_64"
+    - install_perl: $env:install_active_perl
+      install_padwalker: $env:install_active_padwalker
+      version: "5.24.0.2400"
 
 # Install scripts. (runs after repo cloning)
 install:
