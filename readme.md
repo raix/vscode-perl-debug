@@ -23,6 +23,28 @@ Notes:
 * `exec` Can be set to a specific perl binary *defaults to "perl"*
 * `inc` Can be an array of strings / include paths
 
+### Stability
+
+Tests are running in a matrix between os and perl versions
+
+* OSX - perl 5.22
+* OSX - perl 5.20
+* OSX - perl 5.18
+* OSX - perl 5.16
+* OSX - perl 5.14
+* Linux - perl 5.22
+* Linux - perl 5.20
+* Linux - perl 5.18
+* Linux - perl 5.16
+* Linux - perl 5.14
+* Windows 64bit - Strawberry perl v5.20.1.1
+* Windows 64bit - Activeperl v5.24.0.2400
+
+Notes:
+* Theres an issue on windows:
+	* "Restart" - `inhibit_exit` is not respected and will cause the debugger to stop
+	* Variable inspection unstable - it's due to output inconsistency from the perl debugger
+
 ### Credits
 
 Credits goes to Microsoft for making an awesome editor and a nice getting started mock debugger: [https://github.com/Microsoft/vscode-mock-debug.git](https://github.com/Microsoft/vscode-mock-debug.git)
