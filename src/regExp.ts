@@ -1,6 +1,6 @@
 export const colors = /\u001b\[([0-9]+)m|\u001b/g;
 export const db = /^DB\<\<?([0-9]+)\>?\>$/;
-export const restartWarning = /^Warning: some settings and command-line options may be lost!$/;
+export const restartWarning = /^Warning: some settings and command-line options may be lost!/;
 
 export const breakPoint = {
 	// The condition my condition was in eg.:
