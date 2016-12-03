@@ -3,13 +3,15 @@ environment:
   nodejs_version: "6.9.1"
   matrix:
   - perl_distribution: "strawberryperl"
+    install_padwalker: "cpanm PadWalker"
   - perl_distribution: "activeperl"
+    install_padwalker: "ppm install PadWalker"
 
 # Install scripts. (runs after repo cloning)
 install:
   - ps: cinst $env:perl_distribution
   - SET PATH=C:\strawberry\c\bin;C:\strawberry\perl\site\bin;C:\strawberry\perl\bin;%PATH%
-  - ps: cpanm PadWalker
+  - ps: $env:install_padwalker
   # - choco install strawberryperl -version 5.20.1.1
   # - cinst strawberryperl
   # - cinst activeperl
