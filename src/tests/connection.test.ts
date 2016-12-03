@@ -212,9 +212,7 @@ suite('Perl debugger connection', () => {
 			});
 		});
 
-		// xxx: disabled this test on windows for now - it's splitting output on two
-		// lines at random - need to investigate and make the code robust
-		(/^win/.test(process.platform) ? suite.skip : suite)('getVariableList', () => {
+		suite('getVariableList', () => {
 			test('Should get more scope variables types', async function() {
 				await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, []);
 				await conn.setBreakPoint(23, FILE_MODULE);
@@ -222,7 +220,12 @@ suite('Perl debugger connection', () => {
 				await conn.continue();
 				let vars = await conn.getVariableList(1);
 
-				assert.equal(Object.keys(vars).length, 7);
+				if (/^win/.test(process.platform)) {
+					// xxx: disabled this test on windows for now - it's splitting output on two
+					// lines at random - need to investigate and make the code robust
+				} else {
+					assert.equal(Object.keys(vars).length, 7);
+				}
 			});
 		});
 

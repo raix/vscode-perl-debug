@@ -236,12 +236,7 @@ export class perlDebuggerConnection {
 
 		const perlCommand = options.exec || 'perl';
 
-		const debuggerArgs = [ '-d', filename];
-		if (process.env.PERL5OPT) {
-			debuggerArgs.unshift(process.env.PERL5OPT);
-		}
-
-		const commandArgs = [].concat(args, debuggerArgs);
+		const commandArgs = [].concat(args, [ '-d', filename]);
 		this.logOutput( `${perlCommand} ${commandArgs.join(' ')}`);
 
 		// xxx: add failure handling
@@ -252,7 +247,8 @@ export class perlDebuggerConnection {
 				COLUMNS: 80,
 				LINES: 25,
 				TERM: 'dumb',
-				PATH: process.env.PATH,
+				PATH: process.env.PATH || '',
+				PERL5OPT: process.env.PERL5OPT || '',
 			},
 		});
 
