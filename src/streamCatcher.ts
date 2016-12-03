@@ -59,7 +59,8 @@ export class StreamCatcher {
 		output.on('close', () => {
 			// xxx: Windows perl debugger just exits on syntax error without "DB<n>"
 			// If theres stuff left in the buffer we push it and end the request.
-			if (lastBuffer.length) {
+			if (this.requestRunning) {
+				if (this.debug) console.log('RAW> Fake end of request');
 				this.readline(lastBuffer);
 				this.readline('Debugged program terminated.  Use q to quit or R to restart,');
 				this.readline('use o inhibit_exit to avoid stopping after program termination,');
