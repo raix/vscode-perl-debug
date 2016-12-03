@@ -16,16 +16,14 @@ environment:
 
 # Install scripts. (runs after repo cloning)
 install:
+  # Install perl
   - cmd: "%install_perl%"
-  - cd /berrybrew/%version%
-  - ps: ls
+  # Make sure we are in project root
   - cmd: "cd %APPVEYOR_BUILD_FOLDER%"
-  # - ps: cinst $env:perl_distribution
+  # Set path for berrybrew
   - SET PATH=C:\berrybrew\%version%\c\bin;C:\berrybrew\%version%\perl\site\bin;C:\berrybrew\%version%\perl\bin;%PATH%
+  # Install PadWalker
   - cmd: "%install_padwalker%"
-  # - choco install strawberryperl -version 5.20.1.1
-  # - cinst strawberryperl
-  # - cinst activeperl
   # Get the latest stable version of Node.js or io.js
   - ps: Install-Product node $env:nodejs_version
   # install modules
