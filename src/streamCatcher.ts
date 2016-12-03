@@ -48,14 +48,15 @@ export class StreamCatcher {
 			if (this.debug) console.log('RAW:', buffer.toString());
 			const data = lastBuffer + buffer.toString();
 			const lines = data.split(/\r\n|\r|\n/);
+			const firstLine = lines[0];
 			const lastLine = lines[lines.length - 1];
 			const commandIsDone = RX.lastCommandLine.test(lastLine);
 
 			// xxx: Windows restart workaround
 			// the windows perl debugger doesn't end the current restart request so we have to
 			// simulate a proper request end.
-			if ((/^win/.test(process.platform) && RX.restartWarning.test(lastLine)) || timeout) {
-				if (this.debug && RX.restartWarning.test(lastLine)) console.log('RAW> Waiting to fake end of restart request');
+			if ((/^win/.test(process.platform) && RX.restartWarning.test(firstLine)) || timeout) {
+				if (this.debug && RX.restartWarning.test(firstLine)) console.log('RAW> Waiting to fake end of restart request');
 				if (timeout) {
 					clearTimeout(timeout);
 				}
