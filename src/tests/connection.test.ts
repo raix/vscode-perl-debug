@@ -46,9 +46,9 @@ suite('Perl debugger connection', () => {
 			conn.streamCatcher.debug = true;
 			const res = <RequestResponse>await asyncAssert.throws(conn.launchRequest(FILE_BROKEN_SYNTAX, DATA_ROOT, []));
 
-			assert.equal(res.exception, true);
-			assert.equal(res.errors.length, 2);
-			assert.equal(res.finished, true);
+			assert.equal(res.exception, true, 'Response should have exception set true');
+			assert.equal(res.errors.length, 2, 'Response errors should be 2');
+			assert.equal(res.finished, true, 'Response finished should be set true');
 		});
 	});
 
