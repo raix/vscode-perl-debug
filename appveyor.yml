@@ -4,15 +4,18 @@ environment:
   matrix:
   - perl_distribution: "strawberryperl"
     install_padwalker: "cmd /C cpanm PadWalker"
+    install_perl: "git clone https://github.com/stevieb9/berrybrew && cd berrybrew/bin && berrybrew.exe install"
+    - version: "5.24.0_64"
   - perl_distribution: "activeperl"
     install_padwalker: "cmd /C ppm install PadWalker"
+    install_perl: "choco install strawberryperl -version "
+      - version: "5.24.0.2400"
 
 # Install scripts. (runs after repo cloning)
 install:
-  - git clone https://github.com/stevieb9/berrybrew
-  - cmd: "cd berrybrew/bin && berrybrew.exe install 5.24.0_64"
-  - ps: cinst $env:perl_distribution
-  - SET PATH=C:\strawberry\c\bin;C:\strawberry\perl\site\bin;C:\strawberry\perl\bin;%PATH%
+  - cmd: "%install_perl% %version%"
+  # - ps: cinst $env:perl_distribution
+  # - SET PATH=C:\strawberry\c\bin;C:\strawberry\perl\site\bin;C:\strawberry\perl\bin;%PATH%
   - cmd: "%install_padwalker%"
   # - choco install strawberryperl -version 5.20.1.1
   # - cinst strawberryperl
