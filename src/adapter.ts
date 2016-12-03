@@ -288,8 +288,13 @@ export class perlDebuggerConnection {
 		const data = await this.streamCatcher.isReady()
 		this.logData('', data.slice(0, data.length-2));
 
-		// Get the version just after
-		this.perlVersion = await this.getPerlVersion();
+		try {
+			// Get the version just after
+			this.perlVersion = await this.getPerlVersion();
+		} catch(ignore) {
+			// xxx: We have to ignore this error because it would intercept the true
+			// error on windows
+		}
 
 		return this.parseResponse(data);
 	}
