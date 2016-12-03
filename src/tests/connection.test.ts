@@ -212,6 +212,18 @@ suite('Perl debugger connection', () => {
 			});
 		});
 
+		suite('getVariableList', () => {
+			test('Should get more scope variables types', async function() {
+				await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, []);
+				await conn.setBreakPoint(23, FILE_MODULE);
+
+				await conn.continue();
+				let vars = await conn.getVariableList(1);
+
+				assert.equal(Object.keys(vars).length, 7);
+			});
+		});
+
 		suite('restart', () => {
 			test('Should start from the beginning', async () => {
 				let res = await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, []);
@@ -226,18 +238,6 @@ suite('Perl debugger connection', () => {
 				} else {
 					assert.equal(res.ln, 5);
 				}
-			});
-		});
-
-		suite('getVariableList', () => {
-			test('Should get more scope variables types', async function() {
-				await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, []);
-				await conn.setBreakPoint(23, FILE_MODULE);
-
-				await conn.continue();
-				let vars = await conn.getVariableList(1);
-
-				assert.equal(Object.keys(vars).length, 7);
 			});
 		});
 	});
