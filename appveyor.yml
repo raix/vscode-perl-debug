@@ -17,11 +17,11 @@ environment:
 # Install scripts. (runs after repo cloning)
 install:
   - cmd: "%install_perl%"
-  - cd /berrybrew/%version%/perl/bin
+  - cd /berrybrew/%version%
   - ps: ls
   - cmd: "cd %APPVEYOR_BUILD_FOLDER%"
   # - ps: cinst $env:perl_distribution
-  - SET PATH=C:\berrybrew\%version%\perl\bin;%PATH%
+  - SET PATH=C:\berrybrew\%version%\c\bin;C:\berrybrew\%version%\perl\site\bin;C:\berrybrew\%version%\perl\bin;%PATH%
   - cmd: "%install_padwalker%"
   # - choco install strawberryperl -version 5.20.1.1
   # - cinst strawberryperl
