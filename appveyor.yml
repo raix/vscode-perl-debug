@@ -1,8 +1,8 @@
 # Test against this version of Node.js
 environment:
   nodejs_version: "6.9.1"
-  install_berry_perl: "git clone https://github.com/stevieb9/berrybrew && cd berrybrew/bin && berrybrew.exe install"
-  install_active_perl: "choco install strawberryperl -version"
+  install_berry_perl: "cmd /C git clone https://github.com/stevieb9/berrybrew && cd berrybrew/bin && berrybrew.exe install"
+  install_active_perl: "cmd /C choco install strawberryperl -version"
   install_berry_padwalker: "cmd /C cpanm PadWalker"
   install_active_padwalker: "cmd /C ppm install PadWalker"
 
