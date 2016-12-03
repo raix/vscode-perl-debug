@@ -44,7 +44,7 @@ export class StreamCatcher {
 
 		let lastBuffer = '';
 		output.on('data', (buffer) => {
-			console.log('RAW:', buffer.toString());
+			if (this.debug) console.log('RAW:', buffer.toString());
 			const data = lastBuffer + buffer.toString();
 			const lines = data.split(/\r\n|\r|\n/);
 			const commandIsDone = RX.lastCommandLine.test(lines[lines.length - 1]);
