@@ -400,6 +400,7 @@ export class perlDebuggerConnection {
 	}
 
 	async restart() {
+		// xxx: We might need to respawn on windows
 		return await this.request('R');
 	}
 

@@ -43,11 +43,30 @@ export class StreamCatcher {
 		this.input = input;
 
 		let lastBuffer = '';
+		let timeout: NodeJS.Timer | null = null;
 		output.on('data', (buffer) => {
 			if (this.debug) console.log('RAW:', buffer.toString());
 			const data = lastBuffer + buffer.toString();
 			const lines = data.split(/\r\n|\r|\n/);
-			const commandIsDone = RX.lastCommandLine.test(lines[lines.length - 1]);
+			const lastLine = lines[lines.length - 1];
+			const commandIsDone = RX.lastCommandLine.test(lastLine);
+
+			// xxx: Windows restart workaround
+			// the windows perl debugger doesn't end the current restart request so we have to
+			// simulate a proper request end.
+			if ((/^win/.test(process.platform) && RX.restartWarning.test(lastLine)) || timeout) {
+				if (timeout) {
+					clearTimeout(timeout);
+				}
+				timeout = setTimeout(() => {
+					timeout = null;
+					if (this.requestRunning) {
+						if (this.debug) console.log('RAW> Fake end of restart request');
+						// xxx: We might want to simulate all the restart output
+						this.readline('   DB<0> ');
+					}
+				}, 500);
+			}
 
 			if (/\r\n|\r|\n$/.test(data) || commandIsDone) {
 				lastBuffer = '';
