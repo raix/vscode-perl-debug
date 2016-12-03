@@ -26,6 +26,7 @@ test_script:
   - node --version
   - npm --version
   - perl --version
+  - perl -l PadWalker
   # run tests
   - npm test
 
