@@ -43,23 +43,11 @@ export class StreamCatcher {
 		this.input = input;
 
 		let lastBuffer = '';
-		let timeout: NodeJS.Timer|null = null;
 		output.on('data', (buffer) => {
 			console.log('RAW:', buffer.toString());
 			const data = lastBuffer + buffer.toString();
 			const lines = data.split(/\r\n|\r|\n/);
 			const commandIsDone = RX.lastCommandLine.test(lines[lines.length - 1]);
-
-			if (timeout) {
-				clearTimeout(timeout);
-			}
-
-			if (!commandIsDone /*&& !this.ready*/ && /^Xwin/.test(process.platform)) {
-				// Start fake done trigger - this happens on windows
-				timeout = setTimeout(() => {
-					this.readline('   DB<0> ');
-				}, 1000);
-			}
 
 			if (/\r\n|\r|\n$/.test(data) || commandIsDone) {
 				lastBuffer = '';
@@ -67,6 +55,17 @@ export class StreamCatcher {
 				lastBuffer = lines.pop();
 			}
 			lines.forEach(line => this.readline(line));
+		});
+		output.on('close', () => {
+			// xxx: Windows perl debugger just exits on syntax error without "DB<n>"
+			// If theres stuff left in the buffer we push it and end the request.
+			if (lastBuffer.length) {
+				this.readline(lastBuffer);
+				this.readline('Debugged program terminated.  Use q to quit or R to restart,');
+				this.readline('use o inhibit_exit to avoid stopping after program termination,');
+				this.readline('h q, h R or h o to get additional info.');
+				this.readline('   DB<0> ');
+			}
 		});
 	}
 
