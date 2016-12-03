@@ -7,11 +7,11 @@ environment:
   install_active_padwalker: "cmd /C ppm install PadWalker"
 
   matrix:
-    - install_perl: $env:install_berry_perl
-      install_padwalker: $env:install_berry_padwalker
+    - install_perl: "%install_berry_perl%"
+      install_padwalker: "%install_berry_padwalker%"
       version: "5.24.0_64"
-    - install_perl: $env:install_active_perl
-      install_padwalker: $env:install_active_padwalker
+    - install_perl: "%install_active_perl%"
+      install_padwalker: "%install_active_padwalker%"
       version: "5.24.0.2400"
 
 # Install scripts. (runs after repo cloning)
