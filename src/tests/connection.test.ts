@@ -42,10 +42,8 @@ suite('Perl debugger connection', () => {
 		});
 
 		test('Should error when launching ' + FILE_BROKEN_SYNTAX, async () => {
-			conn.debug = true;
-			conn.streamCatcher.debug = true;
 			const res = <RequestResponse>await asyncAssert.throws(conn.launchRequest(FILE_BROKEN_SYNTAX, DATA_ROOT, []));
-console.log('RES:', res);
+
 			assert.equal(res.exception, true, 'Response should have exception set true');
 			assert.equal(res.errors.length, 2, 'Response errors should be 2');
 			assert.equal(res.finished, true, 'Response finished should be set true');
@@ -233,7 +231,6 @@ console.log('RES:', res);
 				await conn.setBreakPoint(23, FILE_MODULE);
 
 				await conn.continue();
-				conn.debug = true;
 				let vars = await conn.getVariableList(1);
 
 				assert.equal(Object.keys(vars).length, 7);

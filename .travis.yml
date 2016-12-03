@@ -18,8 +18,10 @@ before_install:
     - nvm install 6
     - perl --version
     - node --version
+    - export PERL5OPT="-I${HOME}/perl/lib/perl5"
     - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cpanm PadWalker; fi
     - echo $PERL5LIB
+    - echo $PERL5OPT
 install:
     - npm install
 script:
