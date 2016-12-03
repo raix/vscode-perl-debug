@@ -17,7 +17,7 @@ environment:
 # Install scripts. (runs after repo cloning)
 install:
   - cmd: "%install_perl% %version%"
-  - ps: cd /c/
+  - ps: cd /berrybrew
   - ps: ls
   - cmd: "cd %APPVEYOR_BUILD_FOLDER%"
   # - ps: cinst $env:perl_distribution
