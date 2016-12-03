@@ -9,6 +9,8 @@ environment:
 
 # Install scripts. (runs after repo cloning)
 install:
+  - git clone https://github.com/stevieb9/berrybrew
+  - cmd: "berrybrew\bin\berrybrew.exe config"
   - ps: cinst $env:perl_distribution
   - SET PATH=C:\strawberry\c\bin;C:\strawberry\perl\site\bin;C:\strawberry\perl\bin;%PATH%
   - cmd: "%install_padwalker%"
@@ -26,6 +28,7 @@ test_script:
   - node --version
   - npm --version
   - perl --version
+  - berrybrew version
   # run tests
   - npm test
 
