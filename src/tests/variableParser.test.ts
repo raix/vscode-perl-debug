@@ -40,6 +40,49 @@ const data = [ '$bar = \'bar\'',
   '   5  3'
 ];
 
+const dataFaulty = [ '$bar = \'bar\'',
+  '$hello = HASH(0x7fd2689527f0)',
+  '   \'bar\' => 12',
+  '   \'foo\' => ',
+  '\'bar\'',
+  '   \'really\' => \'true\'',
+  '$i = 12',
+  '$obj = ',
+  'HASH(0x7fd26896ecb0)',
+  '   8 => \'-9\'',
+  '   \'bar\' => HASH(0x7fd2689527f0)',
+  '      \'bar\' => 12',
+  '      \'foo\' => ',
+  '\'bar\'',
+  '      \'really\' => \'true\'',
+  '   \'foo\' => \'bar\'',
+  '   \'list\' => ',
+  'ARRAY(0x7fd269242a50)',
+  '      0  \'a\'',
+  '      1  ',
+  '\'\\\'b\'',
+  '      2  \'c\'',
+  '   \'ownObj\' => ',
+  'HASH(0x7fd26892c6c0)',
+  '      \'ownFoo\' => \'own?\'',
+  '   \'ownlist\' => 7',
+  '@list1 = ARRAY(0x7fd269242a50)',
+  '   0  \'a\'',
+  '   1  \'\\\'b\'',
+  '   2  \'c\'',
+  '@list2 = ARRAY(0x7fd269242a68)',
+  '   0  1',
+  '   1  2',
+  '   2  3',
+  '@list3 = ARRAY(0x7fd269242b10)',
+  '   0  \'a\'',
+  '   1  \'\\\'b\'',
+  '   2  \'c\'',
+  '   3  1',
+  '   4  2',
+  '   5  3'
+];
+
 const expectedResult = {
     'local_0':
         [ { name: '$bar',
@@ -191,8 +234,13 @@ const expectedResult = {
 };
 
 suite('variableParser', () => {
-	test('works', () => {
+	test('works on good data', () => {
 		const result = variableParser(data, 'local_0');
+
+		assert.deepEqual(result, expectedResult);
+	});
+	test('works on faulty data', () => {
+		const result = variableParser(dataFaulty, 'local_0');
 
 		assert.deepEqual(result, expectedResult);
 	});

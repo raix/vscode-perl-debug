@@ -130,12 +130,34 @@ export function resolveVariable(name, variablesReference, variables) {
 	return result.join('->');
 }
 
+/**
+ * Fixes faulty variable data, an issue on windows
+ *
+ * Eg.: These lines are symptoms off an issue
+ * '      1  '
+ * '   \'list\' => '
+ * '$obj = '
+ */
+function fixFaultyData(data: string[]): string[] {
+	const result: string[] = [];
+	let merge = '';
+	data.forEach(line => {
+		if (/=>? $/.test(line) || /([0-9]+)  $/.test(line)) {
+			merge = line;
+		} else {
+			result.push(merge + line);
+			merge = '';
+		}
+	});
+	return result;
+}
+
 export default function(data: string[], scopeName: string = '0'): ParsedVariableScope {
 	const result = {};
 	const context: string[] = [scopeName];
 	let lastReference = scopeName;
 	// console.log('-----> SCOPE', scopeName);
-	data.forEach(line => {
+	fixFaultyData(data).forEach(line => {
 		const contextIndent = context.length - 1;
 		const lineIndent = getIndent(line) / indent;
 
