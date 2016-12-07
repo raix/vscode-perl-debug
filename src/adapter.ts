@@ -249,6 +249,7 @@ export class perlDebuggerConnection {
 				TERM: 'dumb',
 				PATH: process.env.PATH || '',
 				PERL5OPT: process.env.PERL5OPT || '',
+				PERL5LIB: process.env.PERL5LIB || '',
 			},
 		});
 
