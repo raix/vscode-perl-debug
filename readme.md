@@ -18,6 +18,10 @@ A debugger for perl in vs code.
 * `exec` Can be set to a specific perl binary *defaults to "perl"*
 * `inc` Can be an array of strings / include paths
 
+### Note
+
+You might have to install `PadWalker` for variable inspection on windows
+
 ### Stability
 
 Tests matrix running between os and perl versions:
