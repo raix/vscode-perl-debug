@@ -1,4 +1,4 @@
-# VS Code Perl Debug [![Build Status](https://travis-ci.org/raix/vscode-perl-debug.svg?branch=master)](https://travis-ci.org/raix/vscode-perl-debug) [![Build status](https://ci.appveyor.com/api/projects/status/rtt7e5fq99vw6857/branch/master?svg=true)](https://ci.appveyor.com/project/raix/vscode-perl-debug/branch/master)
+# VS Code Perl Debug [![Build Status](https://travis-ci.org/raix/vscode-perl-debug.svg?branch=master)](https://travis-ci.org/raix/vscode-perl-debug) [![Build status](https://ci.appveyor.com/api/projects/status/rtt7e5fq99vw6857/branch/master)](https://ci.appveyor.com/project/raix/vscode-perl-debug/branch/master)
 
 A debugger for perl in vs code.
 
@@ -37,7 +37,7 @@ Tests matrix running between os and perl versions:
 * Linux - perl 5.16
 * Linux - perl 5.14
 * Windows 64bit - Strawberry perl v5.20.1.1
-* Windows 64bit - Activeperl v5.24.0.2400
+* Windows 64bit - Activeperl v5.24.1.2402
 
 Known issues on windows:
 
