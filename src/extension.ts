@@ -3,7 +3,7 @@
 import * as vscode from 'vscode';
 
 const initialConfigurations = {
-	version: '0.0.2',
+	version: '0.0.3',
 	configurations: [
 	{
 		type: 'perl',
@@ -13,6 +13,7 @@ const initialConfigurations = {
 		root: '${workspaceRoot}/',
 		program: '${workspaceRoot}/${command.AskForProgramName}',
 		inc: [],
+		args: [],
 		stopOnEntry: true
 	}
 ]}

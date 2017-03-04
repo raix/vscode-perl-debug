@@ -26,6 +26,8 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
 	stopOnEntry?: boolean;
 	/** List of includes */
 	inc?: string[];
+	/** List of program arguments */
+	args?: string[];
 }
 
 class PerlDebugSession extends DebugSession {
@@ -121,7 +123,8 @@ class PerlDebugSession extends DebugSession {
 		this.filename = basename(this._sourceFile);
 		this.filepath = dirname(this._sourceFile);
 		const inc = args.inc && args.inc.length ? args.inc.map(directory => `-I${directory}`) : [];
-		this.perlDebugger.launchRequest(this.filename, this.filepath, inc, { exec: args.exec })
+		const programArguments = args.args || [];
+		this.perlDebugger.launchRequest(this.filename, this.filepath, inc, { exec: args.exec, args: programArguments })
 			.then((res) => {
 				if (args.stopOnEntry) {
 					if (res.ln) {
