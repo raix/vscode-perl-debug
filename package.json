@@ -86,7 +86,7 @@
               "program": {
                 "type": "string",
                 "description": "Absolute path to perl file.",
-                "default": "${workspaceRoot}/${command.AskForProgramName}"
+                "default": "${workspaceRoot}/${relativeFile}"
               },
               "stopOnEntry": {
                 "type": "boolean",
