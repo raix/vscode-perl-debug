@@ -11,6 +11,7 @@ const FILE_MODULE = 'Module.pm';
 const FILE_FICTIVE = 'Fictive.pl';
 const FILE_BROKEN_SYNTAX = 'broken_syntax.pl';
 const FILE_BROKEN_CODE = 'broken_code.pl';
+const FILE_PRINT_ARGUMENTS = 'print_arguments.pl';
 
 suite('Perl debugger connection', () => {
 
@@ -47,6 +48,16 @@ suite('Perl debugger connection', () => {
 			assert.equal(res.exception, true, 'Response should have exception set true');
 			assert.equal(res.errors.length, 2, 'Response errors should be 2');
 			assert.equal(res.finished, true, 'Response finished should be set true');
+		});
+
+		test('Should take arguments ' + FILE_PRINT_ARGUMENTS, async () => {
+			const res = await conn.launchRequest(FILE_PRINT_ARGUMENTS, DATA_ROOT, [], {
+				args: ['foo=bar', 'test=ok'],
+			});
+			await conn.continue();
+			// xxx: It would have been nice if we had a stable way of catching the application output
+			// using the actual application output for validation
+			assert.equal(conn.commandRunning, 'perl -d print_arguments.pl foo=bar test=ok')
 		});
 	});
 

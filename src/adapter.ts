@@ -21,6 +21,7 @@ interface Variable {
 
 interface LaunchOptions {
 	exec?: string;
+	args?: string[];
 }
 
 export interface RequestResponse {
@@ -72,6 +73,7 @@ export class perlDebuggerConnection {
 	private perlDebugger;
 	public streamCatcher: StreamCatcher;
 	public perlVersion: string;
+	public commandRunning: string = '';
 
 	private filename?: string;
 	private filepath?: string;
@@ -235,9 +237,11 @@ export class perlDebuggerConnection {
 		if (this.debug) console.log(`Launch "perl -d ${sourceFile}" in "${filepath}"`);
 
 		const perlCommand = options.exec || 'perl';
+		const programArguments = options.args || [];
 
-		const commandArgs = [].concat(args, [ '-d', filename]);
-		this.logOutput( `${perlCommand} ${commandArgs.join(' ')}`);
+		const commandArgs = [].concat(args, [ '-d', filename], programArguments);
+		this.commandRunning = `${perlCommand} ${commandArgs.join(' ')}`;
+		this.logOutput(this.commandRunning);
 
 		// xxx: add failure handling
 		this.perlDebugger = spawn(perlCommand, commandArgs, {
@@ -270,6 +274,7 @@ export class perlDebuggerConnection {
 		});
 
 		this.perlDebugger.on('close', (code) => {
+			this.commandRunning = '';
 			if (this.streamCatcher.ready) {
 				this.logOutput(`Debugger connection closed`);
 			} else {

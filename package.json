@@ -97,6 +97,11 @@
                 "type": "array",
                 "description": "List of include directories.",
                 "default": []
+              },
+              "args": {
+                "type": "array",
+                "description": "List of program arguments.",
+                "default": []
               }
             }
           }
