@@ -3,12 +3,13 @@
 import * as vscode from 'vscode';
 
 const initialConfigurations = {
-	version: '0.0.4',
+	version: '0.0.5',
 	configurations: [
 	{
 		type: 'perl',
 		request: 'launch',
 		exec: 'perl',
+		execArgs: [],
 		name: 'Perl-Debug',
 		root: '${workspaceRoot}/',
 		program: '${workspaceRoot}/${relativeFile}',

@@ -18,6 +18,8 @@ import { variableType, ParsedVariable, ParsedVariableScope, resolveVariable } fr
 export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArguments {
 	/** Perl binary */
 	exec: string;
+	/** Binary executable arguments */
+	execArgs: string[],
 	/** Workspace path */
 	root: string,
 	/** An absolute path to the program to debug. */
@@ -123,8 +125,9 @@ class PerlDebugSession extends DebugSession {
 		this.filename = basename(this._sourceFile);
 		this.filepath = dirname(this._sourceFile);
 		const inc = args.inc && args.inc.length ? args.inc.map(directory => `-I${directory}`) : [];
+		const execArgs = [].concat(args.execArgs || [], inc);
 		const programArguments = args.args || [];
-		this.perlDebugger.launchRequest(this.filename, this.filepath, inc, { exec: args.exec, args: programArguments })
+		this.perlDebugger.launchRequest(this.filename, this.filepath, execArgs, { exec: args.exec, args: programArguments })
 			.then((res) => {
 				if (args.stopOnEntry) {
 					if (res.ln) {

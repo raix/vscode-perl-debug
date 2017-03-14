@@ -78,6 +78,11 @@
                 "description": "Perl executable.",
                 "default": "perl"
               },
+              "execArgs": {
+                "type": "array",
+                "description": "List of arguments passed on to the executable.",
+                "default": []
+              },
               "root": {
                 "type": "string",
                 "description": "Workspace root.",

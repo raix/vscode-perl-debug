@@ -16,6 +16,7 @@ A debugger for perl in vs code.
 ### Settings
 
 * `exec` Can be set to a specific perl binary *defaults to "perl"*
+* `execArgs` Arguments that is passed to the binary perl executable
 * `inc` Can be an array of strings / include paths
 * `args` Can be an array of strings / program arguments
 
