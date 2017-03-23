@@ -7,7 +7,9 @@ const PROJECT_ROOT = Path.join(__dirname, '../../');
 const DATA_ROOT = Path.join(PROJECT_ROOT, 'src/tests/data/');
 
 const FILE_TEST_PL = 'test.pl';
+const FILE_TEST_NESTED_PL = 'test_nested.pl';
 const FILE_MODULE = 'Module.pm';
+const FILE_NESTED_MODULE = 'Module2.pm';
 const FILE_FICTIVE = 'Fictive.pl';
 const FILE_BROKEN_SYNTAX = 'broken_syntax.pl';
 const FILE_BROKEN_CODE = 'broken_code.pl';
@@ -255,6 +257,26 @@ suite('Perl debugger connection', () => {
 				} else {
 					assert.equal(res.ln, 5);
 				}
+			});
+		});
+
+		suite.skip('resolveFilename', () => {
+			test('Should resolve filenames', async () => {
+				let res = await conn.launchRequest(FILE_TEST_NESTED_PL, DATA_ROOT, []);
+				assert.equal(res.ln, 6);
+				const perl5dbPath = await conn.resolveFilename('perl5db.pl');
+				// /System/Library/Perl/5.18/perl5db.pl
+				assert.ok(/perl5db\.pl$/.test(perl5dbPath), `Expected resolved path to contain the filename, got "${perl5dbPath}"`);
+				assert.ok(perl5dbPath.length > 'perl5db.pl'.length, 'Expected full path in resolved filename');
+
+				const testPath = await conn.resolveFilename(FILE_TEST_NESTED_PL);
+				assert.equal(testPath, '?');
+
+				const modulePath = await conn.resolveFilename(FILE_NESTED_MODULE);
+				assert.equal(modulePath, '?');
+
+				const moduleNestedPath = await conn.resolveFilename(FILE_MODULE);
+				assert.equal(moduleNestedPath, '?');
 			});
 		});
 	});

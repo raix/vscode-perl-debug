@@ -521,6 +521,12 @@ export class perlDebuggerConnection {
 		return res.data[0];
 	}
 
+	async resolveFilename(filename): Promise<string> {
+		const res = await this.request(`p $INC{"${filename}"};`);
+		const [ result = '' ] = res.data;
+		return result;
+	}
+
 	async destroy() {
 		if (this.perlDebugger) {
 			this.streamCatcher.destroy();
