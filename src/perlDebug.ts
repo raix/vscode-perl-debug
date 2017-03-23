@@ -122,8 +122,9 @@ class PerlDebugSession extends DebugSession {
 		this._sourceFile = args.program;
 		this._sourceLines = readFileSync(this._sourceFile).toString().split('\n');
 
-		this.filename = basename(this._sourceFile);
-		this.filepath = dirname(this._sourceFile);
+		this.filename = args.root || basename(this._sourceFile);
+		this.filepath = args.root ? args.program : dirname(this._sourceFile);
+
 		const inc = args.inc && args.inc.length ? args.inc.map(directory => `-I${directory}`) : [];
 		const execArgs = [].concat(args.execArgs || [], inc);
 		const programArguments = args.args || [];
