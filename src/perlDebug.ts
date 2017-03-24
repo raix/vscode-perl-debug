@@ -46,12 +46,6 @@ class PerlDebugSession extends DebugSession {
 		this.__currentLine = line;
 	}
 
-	private _sourceFile: string;
-	private filename: string;
-	private filepath: string;
-
-	private _sourceLines = new Array<string>();
-
 	private _breakPoints = new Map<string, DebugProtocol.Breakpoint[]>();
 	private _functionBreakPoints: string[] = [];
 
@@ -120,16 +114,11 @@ class PerlDebugSession extends DebugSession {
 
 	protected launchRequest(response: DebugProtocol.LaunchResponse, args: LaunchRequestArguments): void {
 		this.rootPath = args.root;
-		this._sourceFile = args.program;
-		this._sourceLines = readFileSync(this._sourceFile).toString().split('\n');
-
-		this.filename = args.root || basename(this._sourceFile);
-		this.filepath = args.root ? args.program : dirname(this._sourceFile);
 
 		const inc = args.inc && args.inc.length ? args.inc.map(directory => `-I${directory}`) : [];
 		const execArgs = [].concat(args.execArgs || [], inc);
 		const programArguments = args.args || [];
-		this.perlDebugger.launchRequest(this.filename, this.filepath, execArgs, { exec: args.exec, args: programArguments })
+		this.perlDebugger.launchRequest(args.program, args.root, execArgs, { exec: args.exec, args: programArguments })
 			.then((res) => {
 				if (args.stopOnEntry) {
 					if (res.ln) {
@@ -230,7 +219,7 @@ class PerlDebugSession extends DebugSession {
 				this.sendEvent(new OutputEvent(`Add ${bp.name}\n`));
 				const neoBreakpoint = <DebugProtocol.FunctionBreakpoint>{name: bp.name};
 				neoBreakpoints.push(neoBreakpoint);
-				response.body.breakpoints = [new Breakpoint(true, 4, 0, new Source('Module.pm', join(this.filepath, 'Module.pm')) )];
+				response.body.breakpoints = [new Breakpoint(true, 4, 0, new Source('Module.pm', join(/* this.filepath, */ 'Module.pm')) )];
 				this.sendResponse(response);
 
 				this.sendEvent(new OutputEvent(`Add ${bp.name}\n`));
@@ -487,7 +476,7 @@ class PerlDebugSession extends DebugSession {
 					this.sendEvent(new StoppedEvent("exception", PerlDebugSession.THREAD_ID, error.near));
 				} else {
 					this.sendEvent(new OutputEvent(`ERR>Continue error: ${error.message}\n`));
-				this.sendEvent(new TerminatedEvent());
+					this.sendEvent(new TerminatedEvent());
 				}
 				this.sendResponse(response);
 			});

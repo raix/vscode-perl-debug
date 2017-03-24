@@ -1,4 +1,5 @@
 import {join} from 'path';
+import * as fs from 'fs';
 import {spawn} from 'child_process';
 import {StreamCatcher} from './streamCatcher';
 import * as RX from './regExp';
@@ -74,6 +75,39 @@ function variableValue(val: string): any {
 	}
 
 	return val;
+}
+
+function absoluteFilename(root: string, filename: string): string {
+	// if it's already absolute then return
+	if (fs.existsSync(filename)) {
+		return filename;
+	}
+
+	// otherwise assume it's a relative filename
+	const fullPath = join(root, filename);
+	if (fs.existsSync(fullPath)) {
+		return fullPath;
+	}
+
+	// xxx: We might want to resolve module names later on
+	// using this.resolveFilename, for now we just return the joined path
+	return join(root, filename);
+}
+
+function relativeFilename(root: string, filename: string): string {
+	// If already relative to root
+	if (fs.existsSync(join(root, filename))) {
+		return filename;
+	}
+	// Try to create relative filename
+	// ensure trailing separator in root path eg. /foo/
+	const relName = filename.replace(root, '').replace(/^[\/|\\]/, '');
+	if (fs.existsSync(join(root, relName))) {
+		return relName;
+	}
+
+	// We might need to add more cases
+	return filename;
 }
 
 export class perlDebuggerConnection {
@@ -152,7 +186,7 @@ export class perlDebuggerConnection {
 				const [, filename, ln] = findFilenameLine(line);
 				if (filename) {
 					res.name = filename;
-					res.filename = join(this.filepath, filename);
+					res.filename = absoluteFilename(this.filepath, filename);
 					res.ln = +ln;
 				}
 
@@ -177,12 +211,13 @@ export class perlDebuggerConnection {
 				if (RX.codeErrorSyntax.test(line)) {
 					const parts = line.match(RX.codeErrorSyntax);
 					if (parts) {
+						const [, filename, ln, near] = parts;
 						res.errors.push({
-							name: parts[1],
-							filename: join(this.filepath, parts[1]),
-							ln: +parts[2],
+							name: filename,
+							filename: absoluteFilename(this.filepath, filename),
+							ln: +ln,
 							message: line,
-							near: parts[3],
+							near: near,
 							type: 'SYNTAX',
 						});
 					}
@@ -193,12 +228,13 @@ export class perlDebuggerConnection {
 					res.exception = true;
 					const parts = line.match(RX.codeErrorRuntime);
 					if (parts) {
+						const [, near, filename, ln] = parts;
 						res.errors.push({
-							name: parts[2],
-							filename: join(this.filepath, parts[2]),
-							ln: +parts[3],
+							name: filename,
+							filename: absoluteFilename(this.filepath, filename),
+							ln: +ln,
 							message: line,
-							near: parts[1],
+							near: near,
 							type: 'RUNTIME',
 						});
 					}
@@ -215,7 +251,6 @@ export class perlDebuggerConnection {
 					throw new Error(`Error in "onException" handler: ${err.message}`);
 				}
 			}
-		}
 		} else if (res.finished) {
 			if (typeof this.onTermination === 'function') {
 				try {
@@ -238,16 +273,19 @@ export class perlDebuggerConnection {
 	async launchRequest(filename: string, filepath: string, args: string[] = [], options:LaunchOptions = {}): Promise<RequestResponse> {
 		this.filename = filename;
 		this.filepath = filepath;
-		this.currentfile = filename;
-		const sourceFile = join(filepath, filename);
+		this.currentfile = relativeFilename(filepath, filename);
+		const sourceFile = relativeFilename(filepath, filename);
 
 		if (this.debug) console.log(`Platform: ${process.platform}`);
 		if (this.debug) console.log(`Launch "perl -d ${sourceFile}" in "${filepath}"`);
 
+		this.logOutput(`Platform: ${process.platform}`);
+		this.logOutput(`Launch "perl -d ${sourceFile}" in "${filepath}"`);
+
 		const perlCommand = options.exec || 'perl';
 		const programArguments = options.args || [];
 
-		const commandArgs = [].concat(args, [ '-d', filename], programArguments);
+		const commandArgs = [].concat(args, [ '-d', sourceFile], programArguments);
 		this.commandRunning = `${perlCommand} ${commandArgs.join(' ')}`;
 		this.logOutput(this.commandRunning);
 
