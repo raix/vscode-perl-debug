@@ -21,14 +21,6 @@ const initialConfigurations = {
 
 export function activate(context: vscode.ExtensionContext) {
 
-	let disposable = vscode.commands.registerCommand('extension.perl-debug.getProgramName', config => {
-		return vscode.window.showInputBox({
-			placeHolder: "Please enter the name of a perl file in the workspace folder",
-			value: "test.pl"
-		});
-	});
-	context.subscriptions.push(disposable);
-
 	context.subscriptions.push(vscode.commands.registerCommand('extension.perl-debug.provideInitialConfigurations', () => {
 		return [
 			JSON.stringify(initialConfigurations, null, '\t')

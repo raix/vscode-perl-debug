@@ -48,7 +48,6 @@
   },
   "main": "./out/extension",
   "activationEvents": [
-    "onCommand:extension.perl-debug.getProgramName",
     "onCommand:extension.perl-debug.provideInitialConfigurations"
   ],
   "contributes": {
@@ -63,9 +62,6 @@
         "label": "Perl Debug",
         "program": "./out/perlDebug.js",
         "runtime": "node",
-        "variables": {
-          "AskForProgramName": "extension.perl-debug.getProgramName"
-        },
         "configurationAttributes": {
           "launch": {
             "required": [
