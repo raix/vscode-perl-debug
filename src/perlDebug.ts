@@ -84,7 +84,8 @@ class PerlDebugSession extends DebugSession {
 
 		this.perlDebugger.onException = (res) => {
 			// xxx: for now I need more info, code to go away...
-			this.sendEvent(new StoppedEvent("exception", PerlDebugSession.THREAD_ID));
+			const [ error ] = res.errors;
+			this.sendEvent(new OutputEvent(`onException: ${error && error.near}`));
 		};
 
 		this.perlDebugger.onTermination = (res) => {
@@ -249,7 +250,8 @@ class PerlDebugSession extends DebugSession {
 				this.sendResponse(response);
 			})
 			.catch(err => {
-				this.sendEvent(new OutputEvent(`ERR>setFunctionBreakPointsRequest error: ${err.message}\n`));
+				const [ error = err ] = err.errors || [];
+				this.sendEvent(new OutputEvent(`ERR>setFunctionBreakPointsRequest error: ${error.message}\n`));
 				this.sendResponse(response);
 			});
 	}
@@ -276,7 +278,8 @@ class PerlDebugSession extends DebugSession {
 					});
 			})
 			.catch((err) => {
-				this.sendEvent(new OutputEvent(`ERR>setVariableRequest error: ${err.message}\n`));
+				const [ error = err ] = err.errors || [];
+				this.sendEvent(new OutputEvent(`ERR>setVariableRequest error: ${error.message}\n`));
 				this.sendResponse(response);
 			});
 	}
@@ -301,11 +304,14 @@ class PerlDebugSession extends DebugSession {
 				// no more lines: run to end
 			})
 			.catch(err => {
-				this.sendEvent(new OutputEvent(`ERR>StepOut error: ${err.message}\n`));
-				this.sendResponse(response);
-				if (err.finished) {
+				const [ error = err ] = err.errors || [];
+				if (err.exception) {
+					this.sendEvent(new StoppedEvent("exception", PerlDebugSession.THREAD_ID, error.near));
+				} else {
+					this.sendEvent(new OutputEvent(`ERR>StepOut error: ${error.message}\n`));
 					this.sendEvent(new TerminatedEvent());
 				}
+				this.sendResponse(response);
 			});
 	}
 
@@ -329,11 +335,14 @@ class PerlDebugSession extends DebugSession {
 				// no more lines: run to end
 			})
 			.catch(err => {
-				this.sendEvent(new OutputEvent(`ERR>StepIn error: ${err.message}\n`));
-				this.sendResponse(response);
-				if (err.finished) {
+				const [ error = err ] = err.errors || [];
+				if (err.exception) {
+					this.sendEvent(new StoppedEvent("exception", PerlDebugSession.THREAD_ID, error.near));
+				} else {
+					this.sendEvent(new OutputEvent(`ERR>StepIn error: ${error.message}\n`));
 					this.sendEvent(new TerminatedEvent());
 				}
+				this.sendResponse(response);
 			});
 	}
 
@@ -443,11 +452,14 @@ class PerlDebugSession extends DebugSession {
 				// no more lines: run to end
 			})
 			.catch(err => {
-				this.sendEvent(new OutputEvent(`ERR>Continue error: ${err.message}\n`));
-				this.sendResponse(response);
-				if (err.finished) {
+				const [ error = err ] = err.errors || [];
+				if (err.exception) {
+					this.sendEvent(new StoppedEvent("exception", PerlDebugSession.THREAD_ID, error.near));
+				} else {
+					this.sendEvent(new OutputEvent(`ERR>Next error: ${error.message}\n`));
 					this.sendEvent(new TerminatedEvent());
 				}
+				this.sendResponse(response);
 			});
 	}
 
@@ -470,8 +482,13 @@ class PerlDebugSession extends DebugSession {
 				}
 			})
 			.catch((err) => {
-				this.sendEvent(new OutputEvent(`ERR>Continue error: ${err.message}\n`));
+				const [ error = err ] = err.errors || [];
+				if (err.exception) {
+					this.sendEvent(new StoppedEvent("exception", PerlDebugSession.THREAD_ID, error.near));
+				} else {
+					this.sendEvent(new OutputEvent(`ERR>Continue error: ${error.message}\n`));
 				this.sendEvent(new TerminatedEvent());
+				}
 				this.sendResponse(response);
 			});
 	}
@@ -705,7 +722,8 @@ class PerlDebugSession extends DebugSession {
 		this.stackTraceRequestAsync(response, args)
 			.then(res => this.sendResponse(res))
 			.catch(err => {
-				this.sendEvent(new OutputEvent(`--->Trace error...${err.message}\n`));
+				const [ error = err ] = err.errors || [];
+				this.sendEvent(new OutputEvent(`--->Trace error...${error.message}\n`));
 				response.body = {
 					stackFrames: [],
 					totalFrames: 0

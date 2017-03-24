@@ -216,7 +216,7 @@ export class perlDebuggerConnection {
 				}
 			}
 		}
-		if (res.finished) {
+		} else if (res.finished) {
 			if (typeof this.onTermination === 'function') {
 				try {
 					this.onTermination(res)
