@@ -24,6 +24,14 @@ interface LaunchOptions {
 	args?: string[];
 }
 
+interface StackFrame {
+	v: string,
+	name: string,
+	filename: string,
+	caller: string,
+	ln: number,
+}
+
 export interface RequestResponse {
 	data?: string[],
 	orgData: string[],
@@ -477,9 +485,9 @@ export class perlDebuggerConnection {
 		return result;
 	}
 
-	async getStackTrace() {
+	async getStackTrace(): Promise<StackFrame[]> {
 		const res = await this.request('T');
-		const result = [];
+		const result: StackFrame[] = [];
 
 		res.data.forEach((line, i) => {
 			// > @ = DB::DB called from file 'lib/Module2.pm' line 5
@@ -488,7 +496,7 @@ export class perlDebuggerConnection {
 
 			if (m !== null) {
 				const [, v, caller, name, ln] = m;
-				const filename = join(this.filepath, name);
+				const filename = absoluteFilename(this.filepath, name);
 				result.push({
 					v,
 					name,

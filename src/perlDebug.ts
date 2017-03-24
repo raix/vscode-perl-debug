@@ -677,11 +677,21 @@ class PerlDebugSession extends DebugSession {
 	private async stackTraceRequestAsync(response: DebugProtocol.StackTraceResponse, args: DebugProtocol.StackTraceArguments): Promise<DebugProtocol.StackTraceResponse> {
 		const stacktrace = await this.perlDebugger.getStackTrace();
 		const frames = new Array<StackFrame>();
+
+		// In case this is a trace run on end, we want to return the file with the exception in the @ position
+		let endFrame = null;
+
 		stacktrace.forEach((trace, i) => {
-			frames.push(new StackFrame(i, `${trace.caller}`, new Source(basename(trace.filename),
+			const frame = new StackFrame(i, `${trace.caller}`, new Source(basename(trace.filename),
 				this.convertDebuggerPathToClient(trace.filename)),
-				trace.ln, 0));
+				trace.ln, 0);
+			frames.push(frame);
+			if (trace.caller === 'DB::END()') {
+				endFrame = frame;
+			}
 		});
+
+		if (endFrame) frames.unshift(endFrame);
 
 		response.body = {
 			stackFrames: frames,
