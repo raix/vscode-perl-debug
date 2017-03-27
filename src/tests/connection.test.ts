@@ -6,7 +6,7 @@ import { perlDebuggerConnection, RequestResponse } from '../adapter';
 const PROJECT_ROOT = Path.join(__dirname, '../../');
 const DATA_ROOT = Path.join(PROJECT_ROOT, 'src/tests/data/');
 
-const FILE_TEST_PL = 'test.pl';
+const FILE_TEST_PL = 'slow_test.pl';
 const FILE_TEST_NESTED_PL = 'test_nested.pl';
 const FILE_MODULE = 'Module.pm';
 const FILE_NESTED_MODULE = 'Module2.pm';
@@ -14,6 +14,7 @@ const FILE_FICTIVE = 'Fictive.pl';
 const FILE_BROKEN_SYNTAX = 'broken_syntax.pl';
 const FILE_BROKEN_CODE = 'broken_code.pl';
 const FILE_PRINT_ARGUMENTS = 'print_arguments.pl';
+const FILE_FAST_TEST_PL = 'fast_test.pl';
 
 suite('Perl debugger connection', () => {
 
