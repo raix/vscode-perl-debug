@@ -273,8 +273,8 @@ export class perlDebuggerConnection {
 	async launchRequest(filename: string, filepath: string, args: string[] = [], options:LaunchOptions = {}): Promise<RequestResponse> {
 		this.filename = filename;
 		this.filepath = filepath;
-		this.currentfile = relativeFilename(filepath, filename);
-		const sourceFile = relativeFilename(filepath, filename);
+		this.currentfile = absoluteFilename(filepath, filename);
+		const sourceFile = absoluteFilename(filepath, filename);
 
 		if (this.debug) console.log(`Platform: ${process.platform}`);
 		if (this.debug) console.log(`Launch "perl -d ${sourceFile}" in "${filepath}"`);
