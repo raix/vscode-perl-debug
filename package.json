@@ -25,17 +25,17 @@
     "url": "https://github.com/raix/vscode-perl-debug/issues"
   },
   "dependencies": {
-    "vscode-debugprotocol": "^1.15.0-pre.1",
-    "vscode-debugadapter": "^1.15.0-pre.1"
+    "vscode-debugadapter": "^1.18.0",
+    "vscode-debugprotocol": "^1.18.0"
   },
   "devDependencies": {
     "@types/es6-promise": "0.0.32",
     "@types/mocha": "^2.2.32",
     "@types/node": "^6.0.39",
-    "mocha": "^3.1.2",
-    "typescript": "^2.0.10",
-    "vscode": "^0.11.18",
-    "vscode-debugadapter-testsupport": "^1.14.0"
+    "mocha": "^3.2.0",
+    "typescript": "^2.2.2",
+    "vscode": "^1.1.0",
+    "vscode-debugadapter-testsupport": "^1.18.0"
   },
   "scripts": {
     "prepublish": "node ./node_modules/typescript/bin/tsc -p ./src",
@@ -103,6 +103,11 @@
                 "type": "array",
                 "description": "List of program arguments.",
                 "default": []
+              },
+              "trace": {
+                "type": "boolean",
+                "description": "Enable logging for the Debug Adapter Protocol",
+                "default": false
               }
             }
           }
