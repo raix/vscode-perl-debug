@@ -1,7 +1,8 @@
 /// <reference types="node" />
 
 import {
-	DebugSession,
+	Logger,
+	DebugSession, LoggingDebugSession,
 	InitializedEvent, TerminatedEvent, StoppedEvent, BreakpointEvent, OutputEvent, Event,
 	Thread, StackFrame, Scope, Source, Handles, Breakpoint, Variable
 } from 'vscode-debugadapter';
@@ -30,9 +31,11 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
 	inc?: string[];
 	/** List of program arguments */
 	args?: string[];
+	/** enable logging the Debug Adapter Protocol */
+	trace?: boolean;
 }
 
-class PerlDebugSession extends DebugSession {
+class PerlDebugSession extends LoggingDebugSession {
 	private static THREAD_ID = 1;
 
 	private _breakpointId = 1000;
@@ -54,7 +57,7 @@ class PerlDebugSession extends DebugSession {
 	private perlDebugger = new perlDebuggerConnection();
 
 	public constructor() {
-		super();
+		super('perl_debugger.log');
 
 		this.setDebuggerLinesStartAt1(false);
 		this.setDebuggerColumnsStartAt1(false);
@@ -118,6 +121,11 @@ class PerlDebugSession extends DebugSession {
 		const inc = args.inc && args.inc.length ? args.inc.map(directory => `-I${directory}`) : [];
 		const execArgs = [].concat(args.execArgs || [], inc);
 		const programArguments = args.args || [];
+
+		if (args.trace) {
+			Logger.setup(Logger.LogLevel.Verbose, /*logToFile=*/false);
+		}
+
 		this.perlDebugger.launchRequest(args.program, args.root, execArgs, { exec: args.exec, args: programArguments })
 			.then((res) => {
 				if (args.stopOnEntry) {
