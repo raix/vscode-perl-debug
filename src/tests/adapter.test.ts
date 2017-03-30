@@ -5,6 +5,7 @@
 
 import assert = require('assert');
 import * as Path from 'path';
+import * as fs from 'fs';
 import {DebugClient} from 'vscode-debugadapter-testsupport';
 import {DebugProtocol} from 'vscode-debugprotocol';
 
@@ -26,6 +27,8 @@ suite('Perl debug Adapter', () => {
 	const FILE_PRINT_ARGUMENTS = 'print_arguments.pl';
 	const FILE_FAST_TEST_PL = 'fast_test.pl';
 
+	const PERL_DEBUG_LOG = 'perl_debugger.log';
+
 	const defaultLaunchConfig = {
 		type: 'perl',
 		request: 'launch',
@@ -36,22 +39,37 @@ suite('Perl debug Adapter', () => {
 		program: FILE_FAST_TEST_PL,
 		inc: [],
 		args: [],
-		stopOnEntry: false
+		stopOnEntry: false,
+		trace: true,
 	};
 
 	const Configuration = (obj: Object) => {
 		return Object.assign({}, defaultLaunchConfig, obj);
 	};
 
+	const printLogFile = () => {
+		const logfile = Path.join(PROJECT_ROOT, PERL_DEBUG_LOG);
+
+		if (fs.existsSync(logfile)) {
+			console.log('Dubug Adapter Log file:');
+			console.log(fs.readFileSync(logfile, 'utf8'));
+		} else {
+			console.log('No log file found');
+		}
+	};
+
+
 	let dc: DebugClient;
 
 	setup( () => {
-		dc = new DebugClient('node', DEBUG_ADAPTER, 'mock');
+		dc = new DebugClient('node', DEBUG_ADAPTER, 'perl');
 		return dc.start();
 	});
 
-	teardown( () => dc.stop() );
-
+	teardown(() => {
+		dc.stop();
+		printLogFile();
+	});
 
 	suite('basic', () => {
 

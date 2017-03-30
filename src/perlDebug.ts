@@ -123,7 +123,7 @@ class PerlDebugSession extends LoggingDebugSession {
 		const programArguments = args.args || [];
 
 		if (args.trace) {
-			Logger.setup(Logger.LogLevel.Verbose, /*logToFile=*/false);
+			Logger.setup(Logger.LogLevel.Verbose, /*logToFile=*/true);
 		}
 
 		this.perlDebugger.launchRequest(args.program, args.root, execArgs, { exec: args.exec, args: programArguments })
