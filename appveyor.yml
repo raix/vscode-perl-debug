@@ -9,7 +9,7 @@ environment:
   matrix:
     - install_perl: "%install_berry_perl%"
       install_padwalker: "%install_berry_padwalker%"
-      version: "5.24.0_64"
+      version: "5.24.1_64"
     - install_perl: "%install_active_perl%"
       install_padwalker: "%install_active_padwalker%"
       version: "5.24.1.2402"
