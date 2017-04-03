@@ -40,7 +40,7 @@ suite('Perl debug Adapter', () => {
 		inc: [],
 		args: [],
 		stopOnEntry: false,
-		trace: true,
+		trace: false,
 	};
 
 	const Configuration = (obj: Object) => {
@@ -49,12 +49,13 @@ suite('Perl debug Adapter', () => {
 
 	const printLogFile = () => {
 		const logfile = Path.join(PROJECT_ROOT, PERL_DEBUG_LOG);
-
-		if (fs.existsSync(logfile)) {
-			console.log('Dubug Adapter Log file:');
-			console.log(fs.readFileSync(logfile, 'utf8'));
-		} else {
-			console.log('No log file found');
+    if (defaultLaunchConfig.trace) {
+			if (fs.existsSync(logfile)) {
+				console.log('Dubug Adapter Log file:');
+				console.log(fs.readFileSync(logfile, 'utf8'));
+			} else {
+				console.log('No log file found');
+			}
 		}
 	};
 

@@ -1,4 +1,4 @@
-import {join} from 'path';
+import {join, dirname} from 'path';
 import * as fs from 'fs';
 import {spawn} from 'child_process';
 import {StreamCatcher} from './streamCatcher';
@@ -280,12 +280,34 @@ export class perlDebuggerConnection {
 		if (this.debug) console.log(`Launch "perl -d ${sourceFile}" in "${filepath}"`);
 
 		this.logOutput(`Platform: ${process.platform}`);
+
+		// We might want to fix the perl5db version
+		const extensionFolder = dirname(process.argv[1]);
+		const perl5bdVersion = '1.51';
+		const perl5dbname = `perl5db.${perl5bdVersion}.pl`;
+		const perl5dbTest = join(extensionFolder, '..', '..', '..', perl5dbname);
+		const perl5db = join(extensionFolder, '..', perl5dbname);
+		let PERL5DB = {};
+
+		if (process.env.PERL5DB) {
+			PERL5DB = { PERL5DB: process.env.PERL5DB };
+			this.logOutput(`Using custom PERL5DB: "${process.env.PERL5DB}"`);
+		} else if (fs.existsSync(perl5db)) {
+			PERL5DB = { PERL5DB: `BEGIN { require "${perl5db}" }` };
+			this.logOutput(`Using extension perl5db: "${perl5db}"`);
+		} else if (fs.existsSync(perl5dbTest)) {
+			PERL5DB = { PERL5DB: `BEGIN { require "${perl5dbTest}" }` };
+			this.logOutput(`Using extension perl5db: "${perl5dbTest}" (TEST MODE)`);
+		} else {
+			this.logOutput(`WARNING: "${perl5db}" not found, using default`);
+		}
+
 		this.logOutput(`Launch "perl -d ${sourceFile}" in "${filepath}"`);
 
 		const perlCommand = options.exec || 'perl';
 		const programArguments = options.args || [];
 
-		const commandArgs = [].concat(args, [ '-d', sourceFile], programArguments);
+		const commandArgs = [].concat(args, [ '-d', sourceFile /*, '-emacs'*/], programArguments);
 		this.commandRunning = `${perlCommand} ${commandArgs.join(' ')}`;
 		this.logOutput(this.commandRunning);
 
@@ -300,6 +322,7 @@ export class perlDebuggerConnection {
 				PATH: process.env.PATH || '',
 				PERL5OPT: process.env.PERL5OPT || '',
 				PERL5LIB: process.env.PERL5LIB || '',
+				...PERL5DB,
 			},
 		});
 
@@ -474,11 +497,7 @@ export class perlDebuggerConnection {
 	 */
 	async requestVariableOutput(level: number) {
 		const variables: Variable[] = [];
-		// xxx: There seem to be an issue in perl debug or PadWalker in/outside these versions on linux
-		const isBrokenLinux = process.platform === 'linux' && (this.perlVersion >= '5.022000' || this.perlVersion < '5.018000');
-		const isBrokenWindows = /^win/.test(process.platform);
-		const fixLevel = isBrokenLinux || isBrokenWindows;
-		const res = await this.request(`y ${fixLevel ? level-1 : level}`);
+		const res = await this.request(`y ${level}`);
 		const result = [];
 
 		if (/^Not nested deeply enough/.test(res.data[0])) {

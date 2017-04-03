@@ -232,15 +232,9 @@ suite('Perl debugger connection', () => {
 				await conn.setBreakPoint(23, FILE_MODULE);
 
 				await conn.continue();
-				let vars = await conn.getVariableList(1);
+				let vars = await conn.getVariableList(0);
 
-				if (/^win/.test(process.platform)) {
-					// xxx: disabled this test on windows for now - it's splitting output on two
-					// lines at random - need to investigate and make the code robust
-					assert.equal(Object.keys(vars).length, 7);
-				} else {
-					assert.equal(Object.keys(vars).length, 7);
-				}
+				assert.equal(Object.keys(vars).length, 7);
 			});
 		});
 
