@@ -162,7 +162,8 @@ suite('Perl debug Adapter', () => {
 
 	});
 
-	suite('setExceptionBreakpoints', () => {
+	// TODO: Need to be able to replicate this
+	suite.skip('setExceptionBreakpoints', () => {
 
 		test('should stop on an exception', () => {
 
