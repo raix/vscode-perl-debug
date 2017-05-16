@@ -1,4 +1,4 @@
-import {join, dirname} from 'path';
+import {join, dirname, sep} from 'path';
 import * as fs from 'fs';
 import {spawn} from 'child_process';
 import {StreamCatcher} from './streamCatcher';
@@ -118,7 +118,7 @@ export class perlDebuggerConnection {
 	public commandRunning: string = '';
 
 	private filename?: string;
-	private filepath?: string;
+	private rootPath?: string;
 	private currentfile?: string;
 
 	public onOutput: Function | null = null;
@@ -186,7 +186,7 @@ export class perlDebuggerConnection {
 				const [, filename, ln] = findFilenameLine(line);
 				if (filename) {
 					res.name = filename;
-					res.filename = absoluteFilename(this.filepath, filename);
+					res.filename = absoluteFilename(this.rootPath, filename);
 					res.ln = +ln;
 				}
 
@@ -214,7 +214,7 @@ export class perlDebuggerConnection {
 						const [, filename, ln, near] = parts;
 						res.errors.push({
 							name: filename,
-							filename: absoluteFilename(this.filepath, filename),
+							filename: absoluteFilename(this.rootPath, filename),
 							ln: +ln,
 							message: line,
 							near: near,
@@ -231,7 +231,7 @@ export class perlDebuggerConnection {
 						const [, near, filename, ln] = parts;
 						res.errors.push({
 							name: filename,
-							filename: absoluteFilename(this.filepath, filename),
+							filename: absoluteFilename(this.rootPath, filename),
 							ln: +ln,
 							message: line,
 							near: near,
@@ -270,18 +270,18 @@ export class perlDebuggerConnection {
 		return res;
 	}
 
-	async launchRequest(filename: string, filepath: string, args: string[] = [], options:LaunchOptions = {}): Promise<RequestResponse> {
+	async launchRequest(filename: string, cwd: string, args: string[] = [], options:LaunchOptions = {}): Promise<RequestResponse> {
+		this.rootPath = cwd;
 		this.filename = filename;
-		this.filepath = filepath;
-		this.currentfile = relativeFilename(filepath, filename);
-		const sourceFile = relativeFilename(filepath, filename);
+		this.currentfile = filename;
+		const sourceFile = filename;
 
 		if (this.debug) console.log(`Platform: ${process.platform}`);
-		if (this.debug) console.log(`Launch "perl -d ${sourceFile}" in "${filepath}"`);
+		if (this.debug) console.log(`Launch "perl -d ${sourceFile}" in "${cwd}"`);
 
 		this.logOutput(`Platform: ${process.platform}`);
 
-		this.logOutput(`Launch "perl -d ${sourceFile}" in "${filepath}"`);
+		this.logOutput(`Launch "perl -d ${sourceFile}" in "${cwd}"`);
 
 		const perlCommand = options.exec || 'perl';
 		const programArguments = options.args || [];
@@ -293,7 +293,7 @@ export class perlDebuggerConnection {
 		// xxx: add failure handling
 		this.perlDebugger = spawn(perlCommand, commandArgs, {
 			detached: true,
-			cwd: filepath,
+			cwd,
 			env: {
 				COLUMNS: 80,
 				LINES: 25,
@@ -361,7 +361,7 @@ export class perlDebuggerConnection {
 
 	async relativePath(filename: string) {
 		await this.streamCatcher.isReady();
-		return filename && filename.replace(`${this.filepath}/`, '');
+		return filename && filename.replace(`${this.rootPath}${sep}`, '');
 	}
 
 	async setFileContext(filename: string = this.filename) {
@@ -541,7 +541,7 @@ export class perlDebuggerConnection {
 
 			if (m !== null) {
 				const [, v, caller, name, ln] = m;
-				const filename = absoluteFilename(this.filepath, name);
+				const filename = absoluteFilename(this.rootPath, name);
 				result.push({
 					v,
 					name,
