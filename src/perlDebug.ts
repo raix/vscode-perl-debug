@@ -1,7 +1,7 @@
 /// <reference types="node" />
 
 import {
-	Logger,
+	Logger, logger,
 	DebugSession, LoggingDebugSession,
 	InitializedEvent, TerminatedEvent, StoppedEvent, BreakpointEvent, OutputEvent, Event,
 	Thread, StackFrame, Scope, Source, Handles, Breakpoint, Variable
@@ -125,7 +125,9 @@ class PerlDebugSession extends LoggingDebugSession {
 		const programArguments = args.args || [];
 
 		if (args.trace) {
-			Logger.setup(Logger.LogLevel.Verbose, /*logToFile=*/true);
+			logger.setup(Logger.LogLevel.Verbose, /*logToFile=*/true);
+		} else {
+			logger.setup(Logger.LogLevel.Stop, false);
 		}
 
 		this.perlDebugger.launchRequest(args.program, args.root, execArgs, {
