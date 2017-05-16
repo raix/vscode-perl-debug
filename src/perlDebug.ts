@@ -33,6 +33,8 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
 	args?: string[];
 	/** enable logging the Debug Adapter Protocol */
 	trace?: boolean;
+	/** env variables when executing debugger */
+	env?: {};
 }
 
 class PerlDebugSession extends LoggingDebugSession {
@@ -126,7 +128,16 @@ class PerlDebugSession extends LoggingDebugSession {
 			Logger.setup(Logger.LogLevel.Verbose, /*logToFile=*/true);
 		}
 
-		this.perlDebugger.launchRequest(args.program, args.root, execArgs, { exec: args.exec, args: programArguments })
+		this.perlDebugger.launchRequest(args.program, args.root, execArgs, {
+			exec: args.exec,
+			args: programArguments,
+			env: {
+				PATH: process.env.PATH || '',
+				// PERL5OPT: process.env.PERL5OPT || '',
+				PERL5LIB: process.env.PERL5LIB || '',
+				...args.env
+			},
+		})
 			.then((res) => {
 				if (args.stopOnEntry) {
 					if (res.ln) {

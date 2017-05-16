@@ -104,6 +104,11 @@
                 "description": "List of program arguments.",
                 "default": []
               },
+              "env": {
+                "type": "object",
+                "description": "Environment variables when debugging",
+                "default": {}
+              },
               "trace": {
                 "type": "boolean",
                 "description": "Enable logging for the Debug Adapter Protocol",

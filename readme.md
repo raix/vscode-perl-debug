@@ -19,6 +19,7 @@ A debugger for perl in vs code.
 * `execArgs` Arguments that is passed to the binary perl executable
 * `inc` Can be an array of strings / include paths
 * `args` Can be an array of strings / program arguments
+* `env` Used for setting environment variables when debugging, `PATH` and `PERL5LIB` default to system unless overwritten
 * `trace` Boolean value to enable Debug Adapter Logging in `perl-debug.log` file
 
 ### Note

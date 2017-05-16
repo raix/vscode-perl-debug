@@ -23,6 +23,7 @@ interface Variable {
 interface LaunchOptions {
 	exec?: string;
 	args?: string[];
+	env?: {},
 }
 
 interface StackFrame {
@@ -298,9 +299,7 @@ export class perlDebuggerConnection {
 				COLUMNS: 80,
 				LINES: 25,
 				TERM: 'dumb',
-				PATH: process.env.PATH || '',
-				PERL5OPT: process.env.PERL5OPT || '',
-				PERL5LIB: process.env.PERL5LIB || '',
+				...options.env,
 			},
 		});
 

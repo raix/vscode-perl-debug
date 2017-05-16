@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 
 const initialConfigurations = {
-	version: '0.0.5',
+	version: '0.0.6',
 	configurations: [
 	{
 		type: 'perl',
@@ -16,7 +16,8 @@ const initialConfigurations = {
 		program: '${workspaceRoot}' + path.sep + '${relativeFile}',
 		inc: [],
 		args: [],
-		stopOnEntry: true
+		env: {},
+		stopOnEntry: true,
 	}
 ]}
 
