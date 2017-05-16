@@ -1,6 +1,7 @@
 'use strict';
 
 import * as vscode from 'vscode';
+import * as path from 'path';
 
 const initialConfigurations = {
 	version: '0.0.5',
@@ -11,8 +12,8 @@ const initialConfigurations = {
 		exec: 'perl',
 		execArgs: [],
 		name: 'Perl-Debug',
-		root: '${workspaceRoot}/',
-		program: '${workspaceRoot}/${relativeFile}',
+		root: '${workspaceRoot}' + path.sep,
+		program: '${workspaceRoot}' + path.sep + '${relativeFile}',
 		inc: [],
 		args: [],
 		stopOnEntry: true
