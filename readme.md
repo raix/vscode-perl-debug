@@ -63,6 +63,20 @@ Known issues on windows:
 Credits goes to Microsoft for making an awesome editor and a nice getting started mock debugger: [https://github.com/Microsoft/vscode-mock-debug.git](https://github.com/Microsoft/vscode-mock-debug.git)
 
 
+### Reporting issues and feature requests
+
+I don't care about stars, but for everybodys sake:
+Please use github for tracking issues and feature requests, thanks!
+
+I do take pull requests for both documentation and code improvements!
+
+Please be aware that this plugin depends on the OS/vs code/perl distribution/perl5db.pl
+and none of these are perfect/consistent dependencies, therefor hard to track down.
+*Why I've added a fairly broad test matrix across os/perl distributions*
+
+Please keep in mind that I'm an ES developer, I don't know all
+the corners of perl - so any help is appriciated.
+
 Kind regards
 
 Morten
