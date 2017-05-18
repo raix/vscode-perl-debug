@@ -26,9 +26,6 @@ A debugger for perl in vs code.
 
 You might have to install `PadWalker` for variable inspection on windows *(and some linux distributions?)*
 
-Also note that this extension now brings version 1.51 of `perl5db.pl` - this can be overwritten
-by setting the environment variable `PERL5DB`.
-
 ### Stability
 
 Tests matrix running between os and perl versions:
