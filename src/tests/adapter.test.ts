@@ -108,7 +108,7 @@ suite('Perl debug Adapter', () => {
 
 	suite('launch', () => {
 
-		test('should run program to the end', () => {
+		test.skip('should run program to the end', () => {
 
 			const PROGRAM = Path.join(DATA_ROOT, FILE_FAST_TEST_PL);
 
