@@ -14,8 +14,8 @@ suite('Perl debug Adapter', () => {
 
 	const DEBUG_ADAPTER = './out/perlDebug.js';
 
-	const PROJECT_ROOT = Path.join(__dirname, '../../');
-	const DATA_ROOT = Path.join(PROJECT_ROOT, 'src/tests/data/');
+	const PROJECT_ROOT = Path.dirname(Path.dirname(__dirname));
+	const DATA_ROOT = Path.join(PROJECT_ROOT, 'src', 'tests', 'data');
 
 	const FILE_TEST_PL = 'slow_test.pl';
 	const FILE_TEST_NESTED_PL = 'test_nested.pl';
@@ -36,7 +36,7 @@ suite('Perl debug Adapter', () => {
 		execArgs: [],
 		name: 'Perl-Debug',
 		root: DATA_ROOT,
-		program: FILE_FAST_TEST_PL,
+		program: Path.join(DATA_ROOT, FILE_FAST_TEST_PL),
 		inc: [],
 		args: [],
 		stopOnEntry: false,
@@ -108,54 +108,51 @@ suite('Perl debug Adapter', () => {
 
 	suite('launch', () => {
 
-		test.skip('should run program to the end', () => {
-
+		test('should run program to the end', async () => {
 			const PROGRAM = Path.join(DATA_ROOT, FILE_FAST_TEST_PL);
 
-			return Promise.all([
-				dc.configurationSequence(),
-				dc.launch(Configuration({ program: PROGRAM })),
-				dc.waitForEvent('terminated')
+			assert.ok(fs.existsSync(PROGRAM), `Test program "${PROGRAM}" not found`);
+//			await dc.configurationSequence();
+			await Promise.all([
+				dc.waitForEvent('initialized'),
+				dc.waitForEvent('terminated'),
+				dc.launch(Configuration({ program: PROGRAM, stopOnEntry: false })),
 			]);
 		});
 
-		test('should stop on entry', () => {
-
+		test('should stop on entry', async () => {
 			const PROGRAM = Path.join(DATA_ROOT, FILE_FAST_TEST_PL);
 			const ENTRY_LINE = 5;
 
-			return Promise.all([
-				dc.configurationSequence(),
-				dc.launch(Configuration({ program: PROGRAM, stopOnEntry: true })),
-				dc.assertStoppedLocation('entry', { line: ENTRY_LINE } )
-			]);
+			assert.ok(fs.existsSync(PROGRAM), `Test program "${PROGRAM}" not found`);
+			await dc.launch(Configuration({ program: PROGRAM, stopOnEntry: true }));
+			await dc.assertStoppedLocation('entry', { line: ENTRY_LINE } );
 		});
 	});
 
 	// xxx: Need to figure out this test
+	// hint: It might be a missing "stop" event - is the application run?
 	suite.skip('setBreakpoints', () => {
 
-		test('should stop on a breakpoint', () => {
-
+		test('should stop on a breakpoint', async () => {
 			const PROGRAM = Path.join(DATA_ROOT, FILE_FAST_TEST_PL);
-			const BREAKPOINT_LINE = 6;
+			const BREAKPOINT_LINE = 9;
 
-			return dc.hitBreakpoint(Configuration({ program: PROGRAM }), { path: PROGRAM, line: BREAKPOINT_LINE } );
+			assert.ok(fs.existsSync(PROGRAM), `Test program "${PROGRAM}" not found`);
+
+			await dc.hitBreakpoint(Configuration({ program: PROGRAM }), { path: PROGRAM, line: BREAKPOINT_LINE } );
 		});
 
-		test('hitting a lazy breakpoint should send a breakpoint event', () => {
+		test.skip('hitting a lazy breakpoint should send a breakpoint event', () => {
 
 			const PROGRAM = Path.join(DATA_ROOT, FILE_FAST_TEST_PL);
 			const BREAKPOINT_LINE = 6;
 
 			return Promise.all([
-
-				dc.hitBreakpoint(({ program: PROGRAM }), { path: PROGRAM, line: BREAKPOINT_LINE, verified: false } ),
-
 				dc.waitForEvent('breakpoint').then((event : DebugProtocol.BreakpointEvent ) => {
 					assert.equal(event.body.breakpoint.verified, true, "event mismatch: verified");
-				})
-
+				}),
+				dc.hitBreakpoint(({ program: PROGRAM }), { path: PROGRAM, line: BREAKPOINT_LINE, verified: false } ),
 			]);
 
 		});
