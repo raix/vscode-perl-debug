@@ -120,7 +120,7 @@ suite('Perl debug Adapter', () => {
 			]);
 		});
 
-		test('should stop on entry', async () => {
+		test.skip('should stop on entry', async () => {
 			const PROGRAM = Path.join(DATA_ROOT, FILE_FAST_TEST_PL);
 			const ENTRY_LINE = 5;
 
