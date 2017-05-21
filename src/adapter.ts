@@ -278,6 +278,12 @@ export class perlDebuggerConnection {
 		const sourceFile = filename;
 
 		if (this.debug) console.log(`Platform: ${process.platform}`);
+		if (this.debug && options.env) {
+			const keys = Object.keys(options.env);
+			keys.forEach(key => {
+				console.log(`env.${key}: "${options.env[key]}"`);
+			});
+		}
 		if (this.debug) console.log(`Launch "perl -d ${sourceFile}" in "${cwd}"`);
 
 		this.logOutput(`Platform: ${process.platform}`);
