@@ -236,8 +236,6 @@ suite('Perl debugger connection', () => {
 
 		suite('getVariableList', () => {
 			test('Should get more scope variables types', async function() {
-				conn.debug = true;
-				conn.streamCatcher.debug = true;
 				await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
 				await conn.setBreakPoint(23, FILE_MODULE);
 
