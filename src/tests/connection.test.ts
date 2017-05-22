@@ -243,17 +243,20 @@ suite('Perl debugger connection', () => {
 				conn.debug = true;
 				conn.streamCatcher.debug = true;
 
+				const vars_1 = await conn.getVariableList(-1);
 				const vars0 = await conn.getVariableList(0);
 				const vars1 = await conn.getVariableList(1);
 				const vars2 = await conn.getVariableList(2);
 				const vars3 = await conn.getVariableList(3);
 
 				assert.deepEqual({
+					'-1': Object.keys(vars_1).length,
 					0: Object.keys(vars0).length,
 					1: Object.keys(vars1).length,
 					2: Object.keys(vars2).length,
 					3: Object.keys(vars3).length,
 				}, {
+					'-1': 0,
 					0: 45,
 					1: 7,
 					2: 1,
