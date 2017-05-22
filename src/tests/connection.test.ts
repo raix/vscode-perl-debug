@@ -243,13 +243,16 @@ suite('Perl debugger connection', () => {
 				let vars;
 
 				vars = await conn.getVariableList(0);
-				assert.equal(Object.keys(vars).length, 7, 'variable level 0 failed');
+				assert.equal(Object.keys(vars).length, 45, 'variable level 0 failed');
 
 				vars = await conn.getVariableList(1);
-				assert.equal(Object.keys(vars).length, 1, 'variable level 1 failed');
+				assert.equal(Object.keys(vars).length, 7, 'variable level 1 failed');
 
 				vars = await conn.getVariableList(2);
-				assert.equal(Object.keys(vars).length, 0, 'variable level 2 failed');
+				assert.equal(Object.keys(vars).length, 1, 'variable level 2 failed');
+
+				vars = await conn.getVariableList(3);
+				assert.equal(Object.keys(vars).length, 0, 'variable level 3 failed');
 
 			});
 		});
