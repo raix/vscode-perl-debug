@@ -240,9 +240,17 @@ suite('Perl debugger connection', () => {
 				await conn.setBreakPoint(23, FILE_MODULE);
 
 				await conn.continue();
-				let vars = await conn.getVariableList(0);
+				let vars;
 
-				assert.equal(Object.keys(vars).length, 7);
+				vars = await conn.getVariableList(0);
+				assert.equal(Object.keys(vars).length, 7, 'variable level 0 failed');
+
+				vars = await conn.getVariableList(1);
+				assert.equal(Object.keys(vars).length, 1, 'variable level 1 failed');
+
+				vars = await conn.getVariableList(2);
+				assert.equal(Object.keys(vars).length, 0, 'variable level 2 failed');
+
 			});
 		});
 
