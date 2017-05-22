@@ -481,7 +481,7 @@ export class perlDebuggerConnection {
 		const isBrokenLinux = process.platform === 'linux' && (this.perlVersion >= '5.022000' || this.perlVersion < '5.018000');
 		const isBrokenWindows = /^win/.test(process.platform);
 		const fix = isBrokenLinux || isBrokenWindows;
-		return fix ? level+1 : level;
+		return level; // fix ? level+1 : level;
 	}
 
 	/**
