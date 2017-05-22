@@ -478,7 +478,7 @@ export class perlDebuggerConnection {
 		// xxx: There seem to be an issue in perl debug or PadWalker in/outside these versions on linux
 		// The issue is due to differences between perl5db.pl versions, we should use that as a reference instead of
 		// using perl/os
-		const isBrokenLinux = process.platform === 'linux' && this.perlVersion < '5.018000';
+		const isBrokenLinux = process.platform === 'linux' && (this.perlVersion >= '5.022000' || this.perlVersion < '5.018000');
 		const isBrokenWindows = /^win/.test(process.platform);
 		const fix = isBrokenLinux || isBrokenWindows;
 		return fix ? level - 1 : level;
