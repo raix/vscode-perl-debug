@@ -240,28 +240,37 @@ suite('Perl debugger connection', () => {
 				await conn.setBreakPoint(23, FILE_MODULE);
 
 				await conn.continue();
-				conn.debug = true;
-				conn.streamCatcher.debug = true;
 
 				const vars_1 = await conn.getVariableList(-1);
 				const vars0 = await conn.getVariableList(0);
 				const vars1 = await conn.getVariableList(1);
 				const vars2 = await conn.getVariableList(2);
 				const vars3 = await conn.getVariableList(3);
-
-				assert.deepEqual({
+				const actual = {
 					'-1': Object.keys(vars_1).length,
 					0: Object.keys(vars0).length,
 					1: Object.keys(vars1).length,
 					2: Object.keys(vars2).length,
 					3: Object.keys(vars3).length,
-				}, {
-					'-1': 0,
-					0: 45,
-					1: 7,
-					2: 1,
-					3: 0,
-				}, 'Variable scope mismatch');
+				};
+
+				if (process.platform === 'darwin') {
+					assert.deepEqual(actual, {
+						'-1': 0,
+						0: 45,
+						1: 7,
+						2: 1,
+						3: 0,
+					}, 'Variable scope mismatch');
+				} else {
+					assert.deepEqual(actual, {
+						'-1': 0,
+						0: 7,
+						1: 1,
+						2: 0,
+						3: 0,
+					}, 'Variable scope mismatch');
+				}
 
 			});
 		});

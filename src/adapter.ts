@@ -474,23 +474,13 @@ export class perlDebuggerConnection {
 		return res.data.pop();
 	}
 
-	private fixLevel(level: number) {
-		// xxx: There seem to be an issue in perl debug or PadWalker in/outside these versions on linux
-		// The issue is due to differences between perl5db.pl versions, we should use that as a reference instead of
-		// using perl/os
-		const isBrokenLinux = process.platform === 'linux' && (this.perlVersion >= '5.022000' || this.perlVersion < '5.018000');
-		const isBrokenWindows = /^win/.test(process.platform);
-		const fix = isBrokenLinux || isBrokenWindows;
-		return level; // fix ? level+1 : level;
-	}
-
 	/**
 	 * Prints out a nice indent formatted list of variables with
 	 * array references resolved.
 	 */
 	async requestVariableOutput(level: number) {
 		const variables: Variable[] = [];
-		const res = await this.request(`y ${this.fixLevel(level)}`);
+		const res = await this.request(`y ${level}`);
 		const result = [];
 
 		if (/^Not nested deeply enough/.test(res.data[0])) {
