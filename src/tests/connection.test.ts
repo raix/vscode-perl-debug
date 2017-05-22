@@ -240,19 +240,23 @@ suite('Perl debugger connection', () => {
 				await conn.setBreakPoint(23, FILE_MODULE);
 
 				await conn.continue();
-				let vars;
 
-				vars = await conn.getVariableList(0);
-				assert.equal(Object.keys(vars).length, 45, 'variable level 0 failed');
+				const vars0 = await conn.getVariableList(0);
+				const vars1 = await conn.getVariableList(1);
+				const vars2 = await conn.getVariableList(2);
+				const vars3 = await conn.getVariableList(3);
 
-				vars = await conn.getVariableList(1);
-				assert.equal(Object.keys(vars).length, 7, 'variable level 1 failed');
-
-				vars = await conn.getVariableList(2);
-				assert.equal(Object.keys(vars).length, 1, 'variable level 2 failed');
-
-				vars = await conn.getVariableList(3);
-				assert.equal(Object.keys(vars).length, 0, 'variable level 3 failed');
+				assert.deepEqual({
+					0: Object.keys(vars0).length,
+					1: Object.keys(vars1).length,
+					2: Object.keys(vars2).length,
+					3: Object.keys(vars3).length,
+				}, {
+					0: 45,
+					1: 7,
+					2: 1,
+					3: 0,
+				}, 'Variable scope mismatch');
 
 			});
 		});
