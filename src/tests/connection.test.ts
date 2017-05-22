@@ -244,7 +244,8 @@ suite('Perl debugger connection', () => {
 				const vars0 = await conn.getVariableList(0);
 				const actual = Object.keys(vars0).length;
 				const expected = [0, 44, 45]; // xxx: Investigate 44 might be a perser issue
-				assert(expected.indexOf(actual) > -1, 'variable count level 0');
+				assert(expected.indexOf(actual) > -1, 'variable count level 0, actual: ' +
+						actual + ' expected: ' + expected.join(' or '));
 
 				const vars1 = await conn.getVariableList(1);
 				assert.equal(Object.keys(vars1).length, 7, 'variable count level 1');
