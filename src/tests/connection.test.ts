@@ -240,6 +240,8 @@ suite('Perl debugger connection', () => {
 				await conn.setBreakPoint(23, FILE_MODULE);
 
 				await conn.continue();
+				conn.debug = true;
+				conn.streamCatcher.debug = true;
 
 				const vars0 = await conn.getVariableList(0);
 				const vars1 = await conn.getVariableList(1);
