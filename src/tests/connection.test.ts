@@ -243,7 +243,7 @@ suite('Perl debugger connection', () => {
 
 				const vars0 = await conn.getVariableList(0);
 				const actual = Object.keys(vars0).length;
-				const expected = [0, 44, 45]; // xxx: Investigate 44 might be a perser issue
+				const expected = [0, 44, 45, 46]; // xxx: Investigate 44+46 might be a perser issue
 				assert(expected.indexOf(actual) > -1, 'variable count level 0, actual: ' +
 						actual + ' expected: ' + expected.join(' or '));
 
