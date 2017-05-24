@@ -1,35 +1,41 @@
 # Test against this version of Node.js
 environment:
   nodejs_version: "6.9.1"
-  install_berry_perl: "cmd /C git clone https://github.com/stevieb9/berrybrew && cd berrybrew/bin && berrybrew.exe install %version% && berrybrew.exe switch %version%"
+  install_berry_perl: "cmd /C choco install strawberryperl -version %version%"
   install_active_perl: "cmd /C choco install activeperl -version %version%"
   install_berry_padwalker: "cmd /C cpanm PadWalker"
   install_active_padwalker: "cmd /C ppm install PadWalker"
 
   matrix:
-    # http://strawberryperl.com/
+    # https://chocolatey.org/packages/StrawberryPerl
     - install_perl: "%install_berry_perl%"
       install_padwalker: "%install_berry_padwalker%"
-      version: "5.24.1_64"
+      version: "5.24.1.1"
     - install_perl: "%install_berry_perl%"
       install_padwalker: "%install_berry_padwalker%"
-      version: "5.22.3_64"
+      version: "5.22.3.1"
     - install_perl: "%install_berry_perl%"
       install_padwalker: "%install_berry_padwalker%"
-      version: "5.20.3_64"
+      version: "5.20.3.3"
     - install_perl: "%install_berry_perl%"
       install_padwalker: "%install_berry_padwalker%"
-      version: "5.18.4_64"
+      version: "5.18.4.1"
     - install_perl: "%install_berry_perl%"
       install_padwalker: "%install_berry_padwalker%"
-      version: "5.16.3_64"
-    # https://downloads.activestate.com/ActivePerl/releases
-    - install_perl: "%install_active_perl%"
-      install_padwalker: "%install_active_padwalker%"
-      version: "5.22.3.2204"
+      version: "5.16.3.20170202"
+    # https://chocolatey.org/packages/ActivePerl
     - install_perl: "%install_active_perl%"
       install_padwalker: "%install_active_padwalker%"
       version: "5.24.1.2402"
+    - install_perl: "%install_active_perl%"
+      install_padwalker: "%install_active_padwalker%"
+      version: "5.22.0.2200"
+    - install_perl: "%install_active_perl%"
+      install_padwalker: "%install_active_padwalker%"
+      version: "5.18.2.1801"
+    - install_perl: "%install_active_perl%"
+      install_padwalker: "%install_active_padwalker%"
+      version: "5.14.2.2"
 
 # Install scripts. (runs after repo cloning)
 install:
