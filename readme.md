@@ -45,6 +45,7 @@ Tests matrix running between os and perl versions:
 * Windows 64bit - Strawberry perl 5.20.3
 * Windows 64bit - Strawberry perl 5.18.4
 * Windows 64bit - Strawberry perl 5.16.3
+* Windows 64bit - Activeperl 5.22.3.2204
 * Windows 64bit - Activeperl 5.24.1.2402
 
 Known issues on windows:

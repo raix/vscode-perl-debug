@@ -7,6 +7,7 @@ environment:
   install_active_padwalker: "cmd /C ppm install PadWalker"
 
   matrix:
+    # http://strawberryperl.com/
     - install_perl: "%install_berry_perl%"
       install_padwalker: "%install_berry_padwalker%"
       version: "5.24.1_64"
@@ -22,6 +23,10 @@ environment:
     - install_perl: "%install_berry_perl%"
       install_padwalker: "%install_berry_padwalker%"
       version: "5.16.3_64"
+    # https://downloads.activestate.com/ActivePerl/releases
+    - install_perl: "%install_active_perl%"
+      install_padwalker: "%install_active_padwalker%"
+      version: "5.22.3.2204"
     - install_perl: "%install_active_perl%"
       install_padwalker: "%install_active_padwalker%"
       version: "5.24.1.2402"
