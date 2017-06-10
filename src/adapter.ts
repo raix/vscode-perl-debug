@@ -370,15 +370,16 @@ export class perlDebuggerConnection {
 	}
 
 	async setFileContext(filename: string = this.filename) {
-		// await this.request(`print STDERR "${filename}"`);
-		const res = await this.request(`f ${filename}`);
+		const cleanFilename = filename.replace(/\\/g, '/');
+		// await this.request(`print STDERR "${cleanFilename}"`);
+		const res = await this.request(`f ${cleanFilename}`);
 		if (res.data.length) {
 			// if (/Already in/.test)
 			if (/^No file matching/.test(res.data[0])) {
 				throw new Error(res.data[0]);
 			}
 		}
-		this.currentfile = filename;
+		this.currentfile = cleanFilename;
 		return res;
 	}
 
