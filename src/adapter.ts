@@ -370,6 +370,8 @@ export class perlDebuggerConnection {
 	}
 
 	async setFileContext(filename: string = this.filename) {
+		// xxx: Apparently perl DB wants unix path separators on windows so
+		// we enforce the unix separator
 		const cleanFilename = filename.replace(/\\/g, '/');
 		// await this.request(`print STDERR "${cleanFilename}"`);
 		const res = await this.request(`f ${cleanFilename}`);
