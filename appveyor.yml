@@ -29,13 +29,13 @@ environment:
       version: "5.24.1.2402"
     - install_perl: "%install_active_perl%"
       install_padwalker: "%install_active_padwalker%"
-      version: "5.22.0.2200"
-    - install_perl: "%install_active_perl%"
-      install_padwalker: "%install_active_padwalker%"
-      version: "5.18.2.1801"
-    - install_perl: "%install_active_perl%"
-      install_padwalker: "%install_active_padwalker%"
-      version: "5.14.2.2"
+      version: "5.22.3.2204" # "5.22.0.2200"
+#    - install_perl: "%install_active_perl%"
+#      install_padwalker: "%install_active_padwalker%"
+#      version: "5.18.2.1801"
+#    - install_perl: "%install_active_perl%"
+#      install_padwalker: "%install_active_padwalker%"
+#      version: "5.14.2.2"
 
 # Install scripts. (runs after repo cloning)
 install:
