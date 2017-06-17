@@ -29,13 +29,14 @@
     "vscode-debugprotocol": "^1.19.0"
   },
   "devDependencies": {
+    "concurrently": "^3.4.0",
     "@types/es6-promise": "0.0.32",
     "@types/mocha": "^2.2.32",
     "@types/node": "^6.0.39",
     "mocha": "^3.2.0",
     "typescript": "^2.2.2",
     "vscode": "^1.1.0",
-    "vscode-debugadapter-testsupport": "^1.19.0",
+   "vscode-debugadapter-testsupport": "^1.19.0",
     "tslint": "^5.1.0"
   },
   "scripts": {
@@ -43,10 +44,11 @@
     "compile": "tsc -p ./src",
     "tslint": "tslint ./src/**/*.ts",
     "watch": "tsc -w -p ./src",
-    "test": "mocha -u tdd ./out/tests/",
-    "test:w": "mocha -u tdd ./out/tests/ --watch",
+    "test": "tsc -p ./src && mocha -u tdd ./out/tests/",
+    "test:w": "concurrently \"tsc -p ./src\" \"mocha -u tdd ./out/tests/ --watch\"",
     "postinstall": "node ./node_modules/vscode/bin/install",
-    "test2": "cd src/tests && electron-mocha ./test.js"
+    "test2": "cd src/tests && electron-mocha ./test.js",
+    "publish:vsce": "./publish_vsce.sh"
   },
   "main": "./out/extension",
   "activationEvents": [
