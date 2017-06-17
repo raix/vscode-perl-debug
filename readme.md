@@ -53,6 +53,8 @@ Known issues on windows:
 * "Restart" - `inhibit_exit` is not respected and will cause the debugger to stop
 * Variable inspection unstable - it's due to output inconsistency from the perl debugger
 
+If you want to help test / debug read [DEBUGGING.md](DEBUGGING.md)
+
 ### Todo
 
 * Watching variables doesn't create actual expression watchers yet - need more api for actually maintaining the list of expressions to watch. I might be able to do a workaround for now.
