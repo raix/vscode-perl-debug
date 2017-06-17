@@ -56,7 +56,6 @@ You can use both `npm` and `yarn` for installing the test depencencies.
 `npm` comes bundles with nodejs, but also take a look at [yarn](https://yarnpkg.com/)
 
 1. Install test depencies `npm install` or `yarn`
-2. Compile typescript `npm run compile` or `yarn compile`
 3. Run tests `npm test` or `yarn test`
 
 * If any of the tests fails then theres a bug to fix
@@ -64,12 +63,11 @@ You can use both `npm` and `yarn` for installing the test depencencies.
 
 #### Running tests in watch mode
 
-If you are developing and want the tests running while editing the source in `src/` then fire up two terminals and run:
+If you are developing and want the tests running while editing the source in `src/` then run:
 
-1. `yarn watch`
-2. `yarn test:w`
+1. `yarn test:w`
 
-And live tests are up
+And live build and tests are up
 
 #### Pull requests aka PR
 
