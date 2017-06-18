@@ -290,6 +290,11 @@ export class perlDebuggerConnection {
 
 		this.logOutput(`Launch "perl -d ${sourceFile}" in "${cwd}"`);
 
+		// Verify file and folder existence
+		// xxx: We can improve the error handling
+		if (!fs.existsSync(sourceFile)) this.logOutput( `Error: File ${sourceFile} not found`);
+		if (cwd && !fs.existsSync(cwd)) this.logOutput( `Error: Folder ${cwd} not found`);
+
 		const perlCommand = options.exec || 'perl';
 		const programArguments = options.args || [];
 
@@ -297,22 +302,25 @@ export class perlDebuggerConnection {
 		this.commandRunning = `${perlCommand} ${commandArgs.join(' ')}`;
 		this.logOutput(this.commandRunning);
 
-		// xxx: add failure handling
-		this.perlDebugger = spawn(perlCommand, commandArgs, {
+		const spawnOptions = {
 			detached: true,
-			cwd,
+			cwd: cwd || undefined,
 			env: {
 				COLUMNS: 80,
 				LINES: 25,
 				TERM: 'dumb',
 				...options.env,
 			},
-		});
+		};
+
+		// xxx: add failure handling
+		this.perlDebugger = spawn(perlCommand, commandArgs, spawnOptions);
 
 		this.perlDebugger.on('error', (err) => {
 			if (this.debug) console.log('error:', err);
 			this.logOutput( `Error`);
 			this.logOutput( err );
+			this.logOutput( `DUMP: spawn(${perlCommand}, ${JSON.stringify(commandArgs)}, ${JSON.stringify(spawnOptions)});` );
 		});
 
 		this.streamCatcher.launch(this.perlDebugger.stdin, this.perlDebugger.stderr);
