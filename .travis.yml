@@ -30,12 +30,10 @@ stages:
   - test
   - name: publish
     if: branch = master
+script:
+    - npm run tslint
+    - npm test
 jobs:
   include:
-    - stage: test
-      script:
-          - npm run tslint
-          - npm test
     - stage: publish
       script: echo "publish"; exit 0
-
