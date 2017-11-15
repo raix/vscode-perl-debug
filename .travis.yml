@@ -25,7 +25,16 @@ before_install:
     - echo "{\"publishers\":[{\"name\":\"${VSCE_USERNAME}\",\"pat\":\"${VSCE_TOKEN}\"}]}" > ~/.vsce
     - cat ~/.vsce
 install:
-    - npm install
-script:
-    - npm run tslint
-    - npm test
+    - travis_retry npm install
+stages:
+  - test
+  - name: publish
+    if: branch = master
+include:
+  - stage: test
+    script:
+        - npm run tslint
+        - npm test
+  - stage: publish
+    script: echo "publish"; exit 0
+
