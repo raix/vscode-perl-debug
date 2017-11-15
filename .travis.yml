@@ -3,7 +3,7 @@ os:
   - linux
   - osx
 node_js:
-  - "6"
+  - "8"
 perl:
   - "5.22"
   - "5.20"
@@ -15,13 +15,15 @@ cache:
   directories:
   - node_modules # NPM packages
 before_install:
-    - nvm install 6
+    - nvm install 8
     - perl --version
     - node --version
     # - export PERL5OPT="-I${HOME}/perl5/lib/perl5"
     - echo $PERL5OPT
     - echo $TRAVIS_OS_NAME
     - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cpanm PadWalker; fi
+    - echo '{"publishers":[{"name":"${VSCE_USERNAME}","pat":"${VSCE_TOKEN}"}]}' > ~/.vsce
+    - cat ~/.vsce
 install:
     - npm install
 script:
