@@ -22,8 +22,6 @@ before_install:
     - echo $PERL5OPT
     - echo $TRAVIS_OS_NAME
     - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cpanm PadWalker; fi
-    - echo "{\"publishers\":[{\"name\":\"${VSCE_USERNAME}\",\"pat\":\"${VSCE_TOKEN}\"}]}" > ~/.vsce
-    - cat ~/.vsce
 install:
     - travis_retry npm install
 stages:
@@ -32,8 +30,11 @@ stages:
     if: branch = master
 script:
     - npm run tslint
-    - npm test
+    - travis_retry npm test # This happens on linux, should investigate
 jobs:
   include:
     - stage: publish
-      script: echo "publish"; exit 0
+      script:
+        - echo "{\"publishers\":[{\"name\":\"${VSCE_USERNAME}\",\"pat\":\"${VSCE_TOKEN}\"}]}" > ~/.vsce
+        - cat ~/.vsce
+        - echo "publish"; exit 0
