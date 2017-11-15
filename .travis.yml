@@ -22,7 +22,7 @@ before_install:
     - echo $PERL5OPT
     - echo $TRAVIS_OS_NAME
     - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cpanm PadWalker; fi
-    - echo '{"publishers":[{"name":"${VSCE_USERNAME}","pat":"${VSCE_TOKEN}"}]}' > ~/.vsce
+    - echo "{\"publishers\":[{\"name\":\"${VSCE_USERNAME}\",\"pat\":\"${VSCE_TOKEN}\"}]}" > ~/.vsce
     - cat ~/.vsce
 install:
     - npm install
