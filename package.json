@@ -24,6 +24,23 @@
   "bugs": {
     "url": "https://github.com/raix/vscode-perl-debug/issues"
   },
+  "release": {
+    "verifyConditions": [
+      "semantic-release-vsce",
+      "@semantic-release/github"
+    ],
+    "getLastRelease": "semantic-release-vsce",
+    "publish": [
+      {
+        "path": "semantic-release-vsce",
+        "packageVsix": "mortenhenriksen.perl-debug.vsix"
+      },
+      {
+        "path": "@semantic-release/github",
+        "assets": "mortenhenriksen.perl-debug.vsix"
+      }
+    ]
+  },
   "dependencies": {
     "vscode-debugadapter": "^1.19.0",
     "vscode-debugprotocol": "^1.19.0"
@@ -34,9 +51,11 @@
     "@types/mocha": "^2.2.32",
     "@types/node": "^6.0.39",
     "mocha": "^3.2.0",
+    "semantic-release": "^10.0.0",
+    "semantic-release-vsce": "^0.1.1",
     "typescript": "^2.2.2",
     "vscode": "^1.1.0",
-   "vscode-debugadapter-testsupport": "^1.19.0",
+    "vscode-debugadapter-testsupport": "^1.19.0",
     "tslint": "^5.1.0"
   },
   "scripts": {
@@ -48,7 +67,8 @@
     "test:w": "concurrently \"tsc -p ./src\" \"mocha -u tdd ./out/tests/ --watch\"",
     "postinstall": "node ./node_modules/vscode/bin/install",
     "test2": "cd src/tests && electron-mocha ./test.js",
-    "publish:vsce": "./publish_vsce.sh"
+    "publish:vsce": "./publish_vsce.sh",
+    "semantic-release": "semantic-release"
   },
   "main": "./out/extension",
   "activationEvents": [
