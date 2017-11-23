@@ -28,7 +28,8 @@ install:
 stages:
   - test
   - name: release
-    if: branch = master AND type = push AND fork = false
+    if: branch = master
+
 script:
     - npm run tslint
     - travis_retry npm test # This happens on linux, should investigate
@@ -39,3 +40,7 @@ jobs:
       node_js: '8'
       script:
         - npm run semantic-release
+
+branches:
+  except:
+    - /^v\d+\.\d+\.\d+$/
