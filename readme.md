@@ -26,9 +26,29 @@ A debugger for perl in vs code.
 * `env` Used for setting environment variables when debugging, `PATH` and `PERL5LIB` default to system unless overwritten
 * `trace` Boolean value to enable Debug Adapter Logging in `perl-debug.log` file
 
-### Note
+### Setup notes
 
-You might have to install `PadWalker` for variable inspection on windows *(and some linux distributions?)*
+You might have to install the `PadWalker` Perl package for variable inspection on Windows *(and some linux distributions?)*
+
+A standard `launch.json` will resemble the following (on Windows, *nix distros will differ slightly.)
+
+	{
+		"version": "0.2.0",
+		"configurations": [
+			{
+				"type": "perl",
+				"request": "launch",
+				"exec": "C:/Perl64/bin/perl.exe",
+				"execArgs": [],
+				"name": "Perl Debug",
+				"root": "${workspaceRoot}",
+				"program": "${workspaceRoot}/${relativeFile}",
+				"inc": [],
+				"args": [],
+				"stopOnEntry": true
+			}
+		]
+	}
 
 ### Stability
 
