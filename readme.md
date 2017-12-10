@@ -32,23 +32,23 @@ You might have to install the `PadWalker` Perl package for variable inspection o
 
 A standard `launch.json` will resemble the following (on Windows, *nix distros will differ slightly.)
 
-	{
-		"version": "0.2.0",
-		"configurations": [
-			{
-				"type": "perl",
-				"request": "launch",
-				"exec": "C:/Perl64/bin/perl.exe",
-				"execArgs": [],
-				"name": "Perl Debug",
-				"root": "${workspaceRoot}",
-				"program": "${workspaceRoot}/${relativeFile}",
-				"inc": [],
-				"args": [],
-				"stopOnEntry": true
-			}
-		]
-	}
+    {
+        "version": "0.2.0",
+        "configurations": [
+            {
+                "type": "perl",
+                "request": "launch",
+                "exec": "C:/Perl64/bin/perl.exe",
+                "execArgs": [],
+                "name": "Perl Debug",
+                "root": "${workspaceRoot}",
+                "program": "${workspaceRoot}/${relativeFile}",
+                "inc": [],
+                "args": [],
+                "stopOnEntry": true
+            }
+        ]
+    }
 
 ### Stability
 
