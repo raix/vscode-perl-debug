@@ -39,10 +39,10 @@ export class RemoteSession implements DebugSession {
 
 			if (!client) {
 				client = socket;
-				this.stdout.push(`> Remote debugger at "${name}" connected at port ${port}.`);
+				this.stdout.push(`Remote debugger at "${name}" connected at port ${port}.`);
 			} else {
 				// Already have a client connected, lets close and notify user
-				this.stderr.push(`> Warning: Additional remote client tried to connect "${name}".`);
+				this.stdout.push(`Warning: Additional remote client tried to connect "${name}".`);
 				socket.end('Remote debugger already connected!');
 			}
 
@@ -50,6 +50,7 @@ export class RemoteSession implements DebugSession {
 
 			socket.on('end', data => {
 				client = null;
+				this.stdout.push(`Connection closed by "${name}"`);
 				this.event.emit('close', data);
 			});
 

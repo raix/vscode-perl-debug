@@ -36,6 +36,8 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
 	trace?: boolean;
 	/** env variables when executing debugger */
 	env?: {};
+	/** port for debugger to listen for remote debuggers */
+	port?,
 }
 
 class PerlDebugSession extends LoggingDebugSession {
@@ -150,6 +152,7 @@ class PerlDebugSession extends LoggingDebugSession {
 				PERL5LIB: process.env.PERL5LIB || '',
 				...args.env
 			},
+			port: args.port || undefined,
 		})
 			.then((res) => {
 				if (args.stopOnEntry) {

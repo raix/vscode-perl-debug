@@ -295,6 +295,7 @@ export class perlDebuggerConnection {
 		if (!options.port) {
 			// If no port is configured then run this locally in a fork
 			this.perlDebugger = new LocalSession(filename, cwd, args, options);
+			this.logOutput(this.perlDebugger.title());
 		} else {
 			// If port is configured then use the remote session.
 			this.logOutput(`Waiting for remote debugger to connect on port "${options.port}"`);
@@ -302,7 +303,6 @@ export class perlDebuggerConnection {
 		}
 
 		this.commandRunning = this.perlDebugger.title();
-		this.logOutput(this.perlDebugger.title());
 
 		this.perlDebugger.on('error', (err) => {
 			if (this.debug) console.log('error:', err);
