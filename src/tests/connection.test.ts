@@ -2,6 +2,7 @@ import assert = require('assert');
 import asyncAssert from './asyncAssert';
 import * as Path from 'path';
 import { perlDebuggerConnection, RequestResponse } from '../adapter';
+import { LocalSession } from '../localSession';
 
 const PROJECT_ROOT = Path.join(__dirname, '../../');
 const DATA_ROOT = Path.join(PROJECT_ROOT, 'src/tests/data/');
@@ -50,6 +51,35 @@ suite('Perl debugger connection', () => {
 			assert.equal(res.finished, false);
 			assert.equal(res.exception, false);
 			assert.equal(res.ln, 5);
+		});
+
+		test('Should be able to connect and launch remote ' + FILE_TEST_PL, async () => {
+			const port = 5000;
+			// Listen for remote debugger session
+			const server = conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], {
+				...launchOptions,
+				port, // Trigger server
+			});
+			// Start "remote" debug session
+			const local = new LocalSession(FILE_TEST_PL, DATA_ROOT, [], {
+				...launchOptions,
+				env: {
+					...launchOptions.env,
+					PERLDB_OPTS: `RemotePort=localhost:${port}`, // Trigger remote debugger
+				},
+			});
+
+			// Wait for result
+			const res = await server;
+
+			// Cleanup
+			local.kill();
+			conn.perlDebugger.kill();
+
+			assert.equal(local.title(), `perl -d ${FILE_TEST_PL}`);
+			assert.equal(res.finished, false);
+			assert.equal(res.exception, false);
+			assert.equal(res.ln, 5); // The first code line in test.pl is 5
 		});
 
 		test('Should error when launching ' + FILE_BROKEN_SYNTAX, async () => {

@@ -4,6 +4,9 @@ import {spawn} from 'child_process';
 import {StreamCatcher} from './streamCatcher';
 import * as RX from './regExp';
 import variableParser, { ParsedVariable, ParsedVariableScope } from './variableParser';
+import { DebugSession, LaunchOptions } from './session';
+import { LocalSession } from './localSession';
+import { RemoteSession } from './remoteSession';
 
 interface ResponseError {
 	filename: string,
@@ -18,12 +21,6 @@ interface Variable {
 	type: string,
 	value: any,
 	variablesReference: number,
-}
-
-interface LaunchOptions {
-	exec?: string;
-	args?: string[];
-	env?: {},
 }
 
 interface StackFrame {
@@ -113,7 +110,7 @@ function relativeFilename(root: string, filename: string): string {
 
 export class perlDebuggerConnection {
 	public debug: boolean = false;
-	private perlDebugger;
+	public perlDebugger: DebugSession;
 	public streamCatcher: StreamCatcher;
 	public perlVersion: string;
 	public commandRunning: string = '';
@@ -284,43 +281,34 @@ export class perlDebuggerConnection {
 				console.log(`env.${key}: "${options.env[key]}"`);
 			});
 		}
-		if (this.debug) console.log(`Launch "perl -d ${sourceFile}" in "${cwd}"`);
-
-		this.logOutput(`Platform: ${process.platform}`);
-
-		this.logOutput(`Launch "perl -d ${sourceFile}" in "${cwd}"`);
 
 		// Verify file and folder existence
 		// xxx: We can improve the error handling
 		if (!fs.existsSync(sourceFile)) this.logOutput( `Error: File ${sourceFile} not found`);
 		if (cwd && !fs.existsSync(cwd)) this.logOutput( `Error: Folder ${cwd} not found`);
 
-		const perlCommand = options.exec || 'perl';
-		const programArguments = options.args || [];
+		this.logOutput(`Platform: ${process.platform}`);
+		this.logOutput(`Launch "perl -d ${sourceFile}" in "${cwd}"`);
 
-		const commandArgs = [].concat(args, [ '-d', sourceFile /*, '-emacs'*/], programArguments);
-		this.commandRunning = `${perlCommand} ${commandArgs.join(' ')}`;
-		this.logOutput(this.commandRunning);
-
-		const spawnOptions = {
-			detached: true,
-			cwd: cwd || undefined,
-			env: {
-				COLUMNS: 80,
-				LINES: 25,
-				TERM: 'dumb',
-				...options.env,
-			},
-		};
 
 		// xxx: add failure handling
-		this.perlDebugger = spawn(perlCommand, commandArgs, spawnOptions);
+		if (!options.port) {
+			// If no port is configured then run this locally in a fork
+			this.perlDebugger = new LocalSession(filename, cwd, args, options);
+		} else {
+			// If port is configured then use the remote session.
+			this.logOutput(`Waiting for remote debugger to connect on port "${options.port}"`);
+			this.perlDebugger = new RemoteSession(options.port);
+		}
+
+		this.commandRunning = this.perlDebugger.title();
+		this.logOutput(this.perlDebugger.title());
 
 		this.perlDebugger.on('error', (err) => {
 			if (this.debug) console.log('error:', err);
 			this.logOutput( `Error`);
 			this.logOutput( err );
-			this.logOutput( `DUMP: spawn(${perlCommand}, ${JSON.stringify(commandArgs)}, ${JSON.stringify(spawnOptions)});` );
+			this.logOutput( `DUMP: ${this.perlDebugger.dump()}` );
 		});
 
 		this.streamCatcher.launch(this.perlDebugger.stdin, this.perlDebugger.stderr);

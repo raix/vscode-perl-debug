@@ -142,6 +142,11 @@
                 "type": "boolean",
                 "description": "Enable logging for the Debug Adapter Protocol",
                 "default": false
+              },
+              "port": {
+                "type": "number",
+                "description": "Port to listen for remote debuggers.",
+                "default": 5000
               }
             }
           }
@@ -159,7 +164,14 @@
             "args": [],
             "env": {},
             "stopOnEntry": true
-        "initialConfigurations": "extension.perl-debug.provideInitialConfigurations"
+          },
+					{
+						"type": "perl",
+						"request": "launch",
+						"name": "Perl-Debug remote",
+						"program": "${workspaceFolder}/${relativeFile}",
+            "root": "${workspaceRoot}/",
+            "port": 5000
 					}
 				]
       }

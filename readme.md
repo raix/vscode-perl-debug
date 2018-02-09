@@ -25,6 +25,7 @@ A debugger for perl in vs code.
 * `args` Can be an array of strings / program arguments
 * `env` Used for setting environment variables when debugging, `PATH` and `PERL5LIB` default to system unless overwritten
 * `trace` Boolean value to enable Debug Adapter Logging in `perl-debug.log` file
+* `port` Number for port to listen for remote debuggers to connect to. *(Used only for remote debugging)*
 
 ### Setup notes
 
@@ -49,6 +50,17 @@ A standard `launch.json` will resemble the following (on Windows, *nix distros w
             }
         ]
     }
+
+### Remote debugger
+
+When setting the `port` attribute in `launch.json` the vs code debug extension will start a debug server for the remote perl debug instance to connect to.
+
+eg.:
+```bash
+ # Start remote debugger in vs code on port 5000 then:
+ $ PERLDB_OPTS="RemotePort=localhost:5000" perl -d test.pl
+```
+*`localhost` should be replaced by the ip address*
 
 ### Stability
 
