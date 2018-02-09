@@ -8,27 +8,27 @@
 			"preLaunchTask": "npm",
 			"runtimeExecutable": "${execPath}",
 			"args": [
-				"--extensionDevelopmentPath=${workspaceRoot}"
+				"--extensionDevelopmentPath=${workspaceFolder}"
 			],
 			"sourceMaps": true,
-			"outFiles": [ "${workspaceRoot}/out/*.js" ]
+			"outFiles": [ "${workspaceFolder}/out/*.js" ]
 		},
 		{
 			"type": "node",
 			"request": "launch",
 			"name": "Run Server",
-			"cwd": "${workspaceRoot}",
-			"program": "${workspaceRoot}/src/perlDebug.ts",
+			"cwd": "${workspaceFolder}",
+			"program": "${workspaceFolder}/src/perlDebug.ts",
 			"args": [ "--server=4711" ],
 			"sourceMaps": true,
-			"outFiles": [ "${workspaceRoot}/out/*.js" ]
+			"outFiles": [ "${workspaceFolder}/out/*.js" ]
 		},
 		{
 			"type": "node",
 			"request": "launch",
 			"name": "Run Tests",
-			"cwd": "${workspaceRoot}",
-			"program": "${workspaceRoot}/node_modules/mocha/bin/_mocha",
+			"cwd": "${workspaceFolder}",
+			"program": "${workspaceFolder}/node_modules/mocha/bin/_mocha",
 			"args": [
 				"-u", "tdd",
 				"--timeout", "999999",
@@ -36,14 +36,14 @@
 				"./out/tests/"
 			],
 			"sourceMaps": true,
-			"outDir": "${workspaceRoot}/out",
+			"outDir": "${workspaceFolder}/out",
 			"internalConsoleOptions": "openOnSessionStart"
 		},
 		{
 			"type": "perl",
 			"request": "launch",
 			"name": "Run Perl Debugger",
-			"program": "${workspaceRoot}/${command.AskForProgramName}",
+			"program": "${workspaceFolder}/${command.AskForProgramName}",
 			"stopOnEntry": true
 		}
 	]

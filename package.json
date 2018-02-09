@@ -8,9 +8,10 @@
     "name": "Morten Henriksen",
     "email": "mh@gi2.dk"
   },
+  "license": "MIT",
   "engines": {
-    "vscode": "^1.1.0",
-    "node": "^5.10.0"
+    "vscode": ">=1.1.10",
+    "node": ">=8.0.0"
   },
   "icon": "images/vscode-perl-debug.png",
   "categories": [
@@ -42,21 +43,22 @@
     ]
   },
   "dependencies": {
-    "vscode-debugadapter": "^1.19.0",
-    "vscode-debugprotocol": "^1.19.0"
+    "await-notify": "1.0.1",
+    "vscode-debugadapter": "1.19.0",
+    "vscode-debugprotocol": "1.19.0"
   },
   "devDependencies": {
-    "concurrently": "^3.4.0",
+    "concurrently": "3.4.0",
     "@types/es6-promise": "0.0.32",
-    "@types/mocha": "^2.2.32",
-    "@types/node": "^6.0.39",
-    "mocha": "^3.2.0",
-    "semantic-release": "^10.0.1",
-    "semantic-release-vsce": "^0.1.4",
-    "typescript": "^2.2.2",
-    "vscode": "^1.1.0",
-    "vscode-debugadapter-testsupport": "^1.19.0",
-    "tslint": "^5.1.0"
+    "@types/mocha": "2.2.45",
+    "@types/node": "7.0.43",
+    "mocha": "3.2.0",
+    "semantic-release": "10.0.1",
+    "semantic-release-vsce": "0.1.4",
+    "typescript": "2.7.1",
+    "vscode": "1.1.10",
+    "vscode-debugadapter-testsupport": "1.19.0",
+    "tslint": "5.8.0"
   },
   "scripts": {
     "prepublish": "tsc -p ./src",
@@ -86,6 +88,9 @@
         "label": "Perl Debug",
         "program": "./out/perlDebug.js",
         "runtime": "node",
+        "languages": [
+					"perl"
+				],
         "configurationAttributes": {
           "launch": {
             "required": [
@@ -106,12 +111,12 @@
               "root": {
                 "type": "string",
                 "description": "Workspace root.",
-                "default": "${workspaceRoot}/"
+                "default": "${workspaceFolder}/"
               },
               "program": {
                 "type": "string",
                 "description": "Absolute path to perl file.",
-                "default": "${workspaceRoot}/${relativeFile}"
+                "default": "${workspaceFolder}/${relativeFile}"
               },
               "stopOnEntry": {
                 "type": "boolean",
@@ -141,7 +146,22 @@
             }
           }
         },
+				"initialConfigurations": [
+					{
+						"type": "perl",
+						"request": "launch",
+						"name": "Perl-Debug local",
+						"program": "${workspaceFolder}/${relativeFile}",
+            "exec": "perl",
+            "execArgs": [],
+            "root": "${workspaceRoot}/",
+            "inc": [],
+            "args": [],
+            "env": {},
+            "stopOnEntry": true
         "initialConfigurations": "extension.perl-debug.provideInitialConfigurations"
+					}
+				]
       }
     ]
   }
