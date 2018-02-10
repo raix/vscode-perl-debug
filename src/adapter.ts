@@ -241,6 +241,11 @@ export class perlDebuggerConnection {
 			}
 		});
 
+		if (res.exception || res.finished) {
+			// Close the connection to perl debugger
+			this.perlDebugger.kill();
+		}
+
 		if (res.exception) {
 			if (typeof this.onException === 'function') {
 				try {
@@ -339,6 +344,11 @@ export class perlDebuggerConnection {
 
 		// Depend on the data dumper for the watcher
 		// await this.streamCatcher.request('use Data::Dumper');
+		await this.streamCatcher.request('$DB::single = 1;');
+		if (options.port) {
+			//
+			await this.streamCatcher.request('select($DB::OUT);');
+		}
 
 		// Listen for a ready signal
 		const data = await this.streamCatcher.isReady()

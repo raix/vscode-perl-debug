@@ -171,6 +171,7 @@
 						"name": "Perl-Debug remote",
 						"program": "${workspaceFolder}/${relativeFile}",
             "root": "${workspaceRoot}/",
+            "stopOnEntry": true,
             "port": 5000
 					}
 				]
