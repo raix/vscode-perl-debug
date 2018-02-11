@@ -233,21 +233,21 @@ const expectedResult = {
         variablesReference: '0' }]
 };
 
-suite('variableParser', () => {
-	test('works on good data', () => {
+describe('variableParser', () => {
+	it('works on good data', () => {
 		const result = variableParser(data, 'local_0');
 
 		assert.deepEqual(result, expectedResult);
 	});
-	test('works on faulty data', () => {
+	it('works on faulty data', () => {
 		const result = variableParser(dataFaulty, 'local_0');
 
 		assert.deepEqual(result, expectedResult);
 	});
 });
 
-suite('resolveVariable', () => {
-	test('works', () => {
+describe('resolveVariable', () => {
+	it('works', () => {
         const variables = variableParser(data, 'local_0');
 		assert.equal(resolveVariable('8', 'HASH(0x7fd26896ecb0)', variables), '$obj->{8}');
 		assert.equal(resolveVariable('$bar', 'local_0', variables), '$bar');

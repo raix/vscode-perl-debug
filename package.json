@@ -48,29 +48,44 @@
     "vscode-debugprotocol": "1.19.0"
   },
   "devDependencies": {
-    "concurrently": "3.4.0",
     "@types/es6-promise": "0.0.32",
-    "@types/mocha": "2.2.45",
+    "@types/jest": "^22.1.2",
     "@types/node": "7.0.43",
-    "mocha": "3.2.0",
+    "concurrently": "3.4.0",
+    "jest": "^22.2.2",
     "semantic-release": "10.0.1",
     "semantic-release-vsce": "0.1.4",
+    "ts-jest": "^22.0.3",
+    "tslint": "5.8.0",
     "typescript": "2.7.1",
     "vscode": "1.1.10",
-    "vscode-debugadapter-testsupport": "1.19.0",
-    "tslint": "5.8.0"
+    "vscode-debugadapter-testsupport": "1.19.0"
   },
   "scripts": {
     "prepublish": "tsc -p ./src",
     "compile": "tsc -p ./src",
     "tslint": "tslint ./src/**/*.ts",
     "watch": "tsc -w -p ./src",
-    "test": "tsc -p ./src && mocha -u tdd ./out/tests/",
+    "test": "ts-jest",
     "test:w": "concurrently \"tsc -p ./src\" \"mocha -u tdd ./out/tests/ --watch\"",
     "postinstall": "node ./node_modules/vscode/bin/install",
     "test2": "cd src/tests && electron-mocha ./test.js",
     "publish:vsce": "./publish_vsce.sh",
     "semantic-release": "semantic-release"
+  },
+  "jest": {
+    "transform": {
+      "^.+\\.tsx?$": "ts-jest"
+    },
+    "testRegex": "/src/tests/.*.test.ts$",
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js",
+      "jsx",
+      "json",
+      "node"
+    ]
   },
   "main": "./out/extension",
   "activationEvents": [
@@ -89,8 +104,8 @@
         "program": "./out/perlDebug.js",
         "runtime": "node",
         "languages": [
-					"perl"
-				],
+          "perl"
+        ],
         "configurationAttributes": {
           "launch": {
             "required": [
@@ -151,12 +166,12 @@
             }
           }
         },
-				"initialConfigurations": [
-					{
-						"type": "perl",
-						"request": "launch",
-						"name": "Perl-Debug local",
-						"program": "${workspaceFolder}/${relativeFile}",
+        "initialConfigurations": [
+          {
+            "type": "perl",
+            "request": "launch",
+            "name": "Perl-Debug local",
+            "program": "${workspaceFolder}/${relativeFile}",
             "exec": "perl",
             "execArgs": [],
             "root": "${workspaceRoot}/",
@@ -165,16 +180,16 @@
             "env": {},
             "stopOnEntry": true
           },
-					{
-						"type": "perl",
-						"request": "launch",
-						"name": "Perl-Debug remote",
-						"program": "${workspaceFolder}/${relativeFile}",
+          {
+            "type": "perl",
+            "request": "launch",
+            "name": "Perl-Debug remote",
+            "program": "${workspaceFolder}/${relativeFile}",
             "root": "${workspaceRoot}/",
             "stopOnEntry": true,
             "port": 5000
-					}
-				]
+          }
+        ]
       }
     ]
   }

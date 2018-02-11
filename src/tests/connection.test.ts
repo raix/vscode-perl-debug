@@ -24,37 +24,37 @@ const launchOptions = {
 	},
 };
 
-suite('Perl debugger connection', () => {
+describe('Perl debugger connection', () => {
 
 	let conn: perlDebuggerConnection;
 
-	setup(() => {
+	beforeEach(() => {
 		conn = new perlDebuggerConnection();
 		return conn.initializeRequest();
 	});
 
-	teardown(() => {
+	afterEach(() => {
 		conn.destroy();
 		conn = null;
 	});
 
-	suite('launchRequest', () => {
-		test('Should be able to connect and launch ' + FILE_TEST_PL, async () => {
+	describe('launchRequest', () => {
+		it('Should be able to connect and launch ' + FILE_TEST_PL, async () => {
 			const res = await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
 			assert.equal(res.finished, false);
 			assert.equal(res.exception, false);
 			assert.equal(res.ln, 5); // The first code line in test.pl is 5
 		});
 
-		test('Should be able to connect and launch ' + FILE_BROKEN_CODE, async () => {
+		it('Should be able to connect and launch ' + FILE_BROKEN_CODE, async () => {
 			const res = await conn.launchRequest(FILE_BROKEN_CODE, DATA_ROOT, [], launchOptions);
 			assert.equal(res.finished, false);
 			assert.equal(res.exception, false);
 			assert.equal(res.ln, 5);
 		});
 
-		test('Should be able to connect and launch remote ' + FILE_TEST_PL, async () => {
-			const port = 5000;
+		it('Should be able to connect and launch remote ' + FILE_TEST_PL, async () => {
+			const port = 5012;
 			// Listen for remote debugger session
 			const server = conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], {
 				...launchOptions,
@@ -82,7 +82,7 @@ suite('Perl debugger connection', () => {
 			assert.equal(res.ln, 5); // The first code line in test.pl is 5
 		});
 
-		test('Should error when launching ' + FILE_BROKEN_SYNTAX, async () => {
+		it('Should error when launching ' + FILE_BROKEN_SYNTAX, async () => {
 			const res = <RequestResponse>await asyncAssert.throws(conn.launchRequest(FILE_BROKEN_SYNTAX, DATA_ROOT, [], launchOptions));
 
 			assert.equal(res.exception, true, 'Response should have exception set true');
@@ -90,7 +90,7 @@ suite('Perl debugger connection', () => {
 			assert.equal(res.finished, true, 'Response finished should be set true');
 		});
 
-		test('Should take arguments ' + FILE_PRINT_ARGUMENTS, async () => {
+		it('Should take arguments ' + FILE_PRINT_ARGUMENTS, async () => {
 			const res = await conn.launchRequest(FILE_PRINT_ARGUMENTS, DATA_ROOT, [], {
 				args: ['foo=bar', 'test=ok'],
 				...launchOptions,
@@ -102,66 +102,66 @@ suite('Perl debugger connection', () => {
 		});
 	});
 
-	suite('setFileContext', () => {
-		test('Should be able to set file context', async () => {
+	describe('setFileContext', () => {
+		it('Should be able to set file context', async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
 			await conn.setFileContext(FILE_MODULE);
 		});
 
-		test('Should be able to set file context on same file twice', async () => {
+		it('Should be able to set file context on same file twice', async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
 			await conn.setFileContext(FILE_MODULE);
 			await conn.setFileContext(FILE_MODULE);
 		});
 
-		test('Should throw on unknown file', async () => {
+		it('Should throw on unknown file', async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
 			await asyncAssert.throws(conn.setFileContext(FILE_FICTIVE));
 		});
 	});
 
-	suite('setBreakPoint', () => {
-		test('Should be able to set break point on line 5 in current file', async () => {
+	describe('setBreakPoint', () => {
+		it('Should be able to set break point on line 5 in current file', async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
 			await conn.setBreakPoint(5);
 		});
-		test('Should not be able to set breakpoint on line 7 in current file', async () => {
+		it('Should not be able to set breakpoint on line 7 in current file', async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
 			await asyncAssert.throws(conn.setBreakPoint(7));
 		});
-		test('Should be able to set break point on line 5 in ' + FILE_TEST_PL, async () => {
+		it('Should be able to set break point on line 5 in ' + FILE_TEST_PL, async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
 			await conn.setBreakPoint(5, FILE_TEST_PL);
 		});
-		test('Should not be able to set breakpoint on line 7 in ' + FILE_TEST_PL, async () => {
+		it('Should not be able to set breakpoint on line 7 in ' + FILE_TEST_PL, async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
 			await asyncAssert.throws(conn.setBreakPoint(7, FILE_TEST_PL));
 		});
-		test('Should be able to set break point on line 4 in ' + FILE_MODULE, async () => {
+		it('Should be able to set break point on line 4 in ' + FILE_MODULE, async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
 			await conn.setBreakPoint(4, FILE_MODULE);
 		});
-		test('Should not be able to set breakpoint on line 3 in ' + FILE_MODULE, async () => {
+		it('Should not be able to set breakpoint on line 3 in ' + FILE_MODULE, async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
 			await asyncAssert.throws(conn.setBreakPoint(3, FILE_MODULE));
 		});
-		test('Should not be able to set breakpoint on line 5 in ' + FILE_FICTIVE, async () => {
+		it('Should not be able to set breakpoint on line 5 in ' + FILE_FICTIVE, async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
 			await asyncAssert.throws(conn.setBreakPoint(5, FILE_FICTIVE));
 		});
 	});
 
-	suite('getBreakPoints', () => {
-		test('Should work if no breakpoints are added', async () => {
+	describe('getBreakPoints', () => {
+		it('Should work if no breakpoints are added', async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
 			assert.deepEqual(await conn.getBreakPoints(), {});
 		});
-		test('Should work if only one file is added', async () => {
+		it('Should work if only one file is added', async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
 			await conn.setBreakPoint(5);
 			assert.deepEqual(await conn.getBreakPoints(), { [FILE_TEST_PL]: [ 5 ] });
 		});
-		test('Should work if multiple breakpoints are added for one file', async () => {
+		it('Should work if multiple breakpoints are added for one file', async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
 			await conn.setBreakPoint(5);
 			await conn.setBreakPoint(6);
@@ -171,7 +171,7 @@ suite('Perl debugger connection', () => {
 			await conn.setBreakPoint(11);
 			assert.deepEqual(await conn.getBreakPoints(), { [FILE_TEST_PL]: [ 5, 6, 8, 9, 10, 11 ] });
 		});
-		test('Should work if multiple breakpoints are added for multiple files', async () => {
+		it('Should work if multiple breakpoints are added for multiple files', async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
 			await conn.setBreakPoint(5);
 			await conn.setBreakPoint(8, FILE_TEST_PL);
@@ -190,8 +190,8 @@ suite('Perl debugger connection', () => {
 		});
 	});
 
-	suite('clearBreakPoint', () => {
-		test('Should allow clearing one breakpoint', async () => {
+	describe('clearBreakPoint', () => {
+		it('Should allow clearing one breakpoint', async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
 			await conn.setBreakPoint(5);
 			await conn.setBreakPoint(6);
@@ -214,8 +214,8 @@ suite('Perl debugger connection', () => {
 		});
 	});
 
-	suite('clearBreakPoint', () => {
-		test('Should allow clearing all breakpoints', async () => {
+	describe('clearBreakPoint', () => {
+		it('Should allow clearing all breakpoints', async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
 			await conn.setBreakPoint(5);
 			await conn.setBreakPoint(8, FILE_TEST_PL);
@@ -230,16 +230,16 @@ suite('Perl debugger connection', () => {
 		});
 	});
 
-	suite('Test debugger', () => {
-		suite('continue', () => {
-			test('Should leave us at line 9 in ' + FILE_TEST_PL, async () => {
+	describe('Test debugger', () => {
+		describe('continue', () => {
+			it('Should leave us at line 9 in ' + FILE_TEST_PL, async () => {
 				await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
 				await conn.setBreakPoint(9, FILE_TEST_PL);
 				const res = await conn.continue();
 				assert.equal(res.ln, 9);
 			});
 
-			test('Should throw an error ' + FILE_BROKEN_CODE, async () => {
+			it('Should throw an error ' + FILE_BROKEN_CODE, async () => {
 				await conn.launchRequest(FILE_BROKEN_CODE, DATA_ROOT, [], launchOptions);
 				await conn.setBreakPoint(9, FILE_BROKEN_CODE);
 				// In between we have broken code
@@ -255,8 +255,8 @@ suite('Perl debugger connection', () => {
 			});
 		});
 
-		suite('next', () => {
-			test('Should go to next statement', async () => {
+		describe('next', () => {
+			it('Should go to next statement', async () => {
 				let res = await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
 				assert.equal(res.ln, 5);
 				res = await conn.next();
@@ -264,8 +264,8 @@ suite('Perl debugger connection', () => {
 			});
 		});
 
-		suite('getVariableList', () => {
-			test('Should get more scope variables types', async function() {
+		describe('getVariableList', () => {
+			it('Should get more scope variables types', async function() {
 				await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
 				await conn.setBreakPoint(23, FILE_MODULE);
 
@@ -286,8 +286,8 @@ suite('Perl debugger connection', () => {
 			});
 		});
 
-		suite('restart', () => {
-			test('Should start from the beginning', async () => {
+		describe('restart', () => {
+			it('Should start from the beginning', async () => {
 				let res = await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
 				assert.equal(res.ln, 5);
 				res = await conn.next();
@@ -303,8 +303,8 @@ suite('Perl debugger connection', () => {
 			});
 		});
 
-		suite.skip('resolveFilename', () => {
-			test('Should resolve filenames', async () => {
+		describe.skip('resolveFilename', () => {
+			it('Should resolve filenames', async () => {
 				let res = await conn.launchRequest(FILE_TEST_NESTED_PL, DATA_ROOT, [], launchOptions);
 				assert.equal(res.ln, 6);
 				const perl5dbPath = await conn.resolveFilename('perl5db.pl');
