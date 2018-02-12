@@ -14,6 +14,7 @@ cache:
   bundler: true
   directories:
   - ~/.npm
+  - ~/.yarn
   - node_modules # NPM packages
 before_install:
     - nvm install 8
@@ -24,22 +25,22 @@ before_install:
     - echo $TRAVIS_OS_NAME
     - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then cpanm PadWalker; fi
 install:
-    - travis_retry npm install
+    - travis_retry yarn
 stages:
   - test
   - name: release
     if: branch = master
 
 script:
-    - npm run tslint
-    - travis_retry npm test # This happens on linux, should investigate
+    - yarn tslint
+    - travis_retry yarn test # This happens on linux, should investigate
 jobs:
   include:
     - stage: release
       language: node_js
       node_js: '8'
       script:
-        - npm run semantic-release
+        - yarn semantic-release
 branches:
   except:
     - /^v\d+\.\d+\.\d+$/
