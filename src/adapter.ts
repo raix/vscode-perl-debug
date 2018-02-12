@@ -113,6 +113,7 @@ export class perlDebuggerConnection {
 	public perlDebugger: DebugSession;
 	public streamCatcher: StreamCatcher;
 	public perlVersion: string;
+	public padwalkerVersion: string;
 	public commandRunning: string = '';
 
 	private filename?: string;
@@ -362,6 +363,13 @@ export class perlDebuggerConnection {
 			// error on windows
 		}
 
+		try {
+			this.padwalkerVersion = await this.getPadwalkerVersion();
+		} catch(ignore) {
+			// xxx: Ignore errors - it should not break anything, this is used to
+			// inform the user of a missing dependency install of PadWalker
+		}
+
 		return this.parseResponse(data);
 	}
 
@@ -534,6 +542,19 @@ export class perlDebuggerConnection {
 	}
 
 	async variableList(scopes): Promise<ParsedVariableScope> {
+		// If padwalker not found then tell the user via the variable inspection
+		// instead of being empty.
+		if (!this.padwalkerVersion) {
+			return {
+				local_0: [{
+					name: 'PadWalker',
+					value: 'Not installed',
+					type: 'string',
+					variablesReference: '0',
+				}],
+			};
+		}
+
 		const keys = Object.keys(scopes);
 		let result: ParsedVariableScope = {};
 
@@ -587,6 +608,14 @@ export class perlDebuggerConnection {
 	async getPerlVersion(): Promise<string> {
 		const res = await this.request('p $]');
 		return res.data[0];
+	}
+
+	async getPadwalkerVersion(): Promise<string> {
+		const res = await this.request('print $DB::OUT eval { require PadWalker; PadWalker->VERSION() }');
+		const version = res.data[0];
+		if (/^[0-9]+\.?([0-9]?)+$/.test(version)) {
+			return version;
+		}
 	}
 
 	async resolveFilename(filename): Promise<string> {

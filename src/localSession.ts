@@ -27,7 +27,7 @@ export class LocalSession implements DebugSession {
 				...options.env,
 			},
 		};
-        // print $DB::OUT eval { require PadWalker; PadWalker->VERSION(0.08) }
+
 		const session = spawn(perlCommand, commandArgs, spawnOptions);
 		this.stdin = session.stdin;
 		this.stdout = session.stdout;

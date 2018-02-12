@@ -264,6 +264,15 @@ describe('Perl debugger connection', () => {
 			});
 		});
 
+		describe('getPadwalkerVersion', () => {
+			it('should return version of installed padwalker', async () => {
+				await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
+				expect(conn.padwalkerVersion).toBeDefined();
+				expect(conn.padwalkerVersion.length).toBeGreaterThan(1);
+				expect(Number(conn.padwalkerVersion)).toBeGreaterThan(1);
+			});
+		});
+
 		describe('getVariableList', () => {
 			it('Should get more scope variables types', async function() {
 				await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
