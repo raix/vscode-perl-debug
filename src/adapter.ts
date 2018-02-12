@@ -345,10 +345,10 @@ export class perlDebuggerConnection {
 		// Depend on the data dumper for the watcher
 		// await this.streamCatcher.request('use Data::Dumper');
 		await this.streamCatcher.request('$DB::single = 1;');
-		if (options.port) {
-			//
-			await this.streamCatcher.request('select($DB::OUT);');
-		}
+		// if (options.port) {
+			// xxx: This will mix stderr and stdout into one dbout
+			// await this.streamCatcher.request('select($DB::OUT);');
+		// }
 
 		// Listen for a ready signal
 		const data = await this.streamCatcher.isReady()

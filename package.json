@@ -62,12 +62,12 @@
     "vscode-debugadapter-testsupport": "1.19.0"
   },
   "scripts": {
-    "prepublish": "tsc -p ./src",
-    "compile": "tsc -p ./src",
+    "prepublish": "tsc",
+    "compile": "tsc",
     "tslint": "tslint ./src/**/*.ts",
-    "watch": "tsc -w -p ./src",
-    "test": "ts-jest",
-    "test:w": "concurrently \"tsc -p ./src\" \"mocha -u tdd ./out/tests/ --watch\"",
+    "watch": "tsc -w",
+    "test": "jest",
+    "test:w": "jest --watch",
     "postinstall": "node ./node_modules/vscode/bin/install",
     "test2": "cd src/tests && electron-mocha ./test.js",
     "publish:vsce": "./publish_vsce.sh",

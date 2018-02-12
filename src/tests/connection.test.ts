@@ -54,7 +54,7 @@ describe('Perl debugger connection', () => {
 		});
 
 		it('Should be able to connect and launch remote ' + FILE_TEST_PL, async () => {
-			const port = 5012;
+			const port = 5000 + Math.round(Math.random()*100); // Not to conflict with VS Code jest ext
 			// Listen for remote debugger session
 			const server = conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], {
 				...launchOptions,
