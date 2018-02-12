@@ -346,6 +346,10 @@ export class perlDebuggerConnection {
 		// Depend on the data dumper for the watcher
 		// await this.streamCatcher.request('use Data::Dumper');
 		await this.streamCatcher.request('$DB::single = 1;');
+
+		// xxx: Prevent buffering issues ref: https://github.com/raix/vscode-perl-debug/issues/15#issuecomment-331435911
+		await this.streamCatcher.request('$| = 1;');
+
 		// if (options.port) {
 			// xxx: This will mix stderr and stdout into one dbout
 			// await this.streamCatcher.request('select($DB::OUT);');
