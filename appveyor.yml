@@ -10,7 +10,10 @@ environment:
     # http://strawberryperl.com/
     - install_perl: "%install_berry_perl%"
       install_padwalker: "%install_berry_padwalker%"
-      version: "5.24.3.1_64"
+      version: "5.26.0_64"
+    - install_perl: "%install_berry_perl%"
+      install_padwalker: "%install_berry_padwalker%"
+      version: "5.24.2_64"
     - install_perl: "%install_berry_perl%"
       install_padwalker: "%install_berry_padwalker%"
       version: "5.22.3_64"
