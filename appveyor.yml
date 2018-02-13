@@ -1,7 +1,7 @@
 # Test against this version of Node.js
 environment:
-  nodejs_version: "6.9.1"
-  install_berry_perl: "cmd /C git clone https://github.com/stevieb9/berrybrew && cd berrybrew/bin && berrybrew.exe install %version% && berrybrew.exe switch %version%"
+  nodejs_version: "8.9.4"
+  install_berry_perl: "cmd /C git clone https://github.com/stevieb9/berrybrew && cd berrybrew/bin && berrybrew.exe available && berrybrew.exe install %version% && berrybrew.exe switch %version%"
   install_active_perl: "cmd /C choco install activeperl -version %version%"
   install_berry_padwalker: "cmd /C cpanm PadWalker"
   install_active_padwalker: "cmd /C ppm install PadWalker"
@@ -10,7 +10,7 @@ environment:
     # http://strawberryperl.com/
     - install_perl: "%install_berry_perl%"
       install_padwalker: "%install_berry_padwalker%"
-      version: "5.24.1_64"
+      version: "5.24.3.1_64"
     - install_perl: "%install_berry_perl%"
       install_padwalker: "%install_berry_padwalker%"
       version: "5.22.3_64"
@@ -26,7 +26,7 @@ environment:
     # https://chocolatey.org/packages/ActivePerl
     - install_perl: "%install_active_perl%"
       install_padwalker: "%install_active_padwalker%"
-      version: "5.24.1.2402"
+      version: "5.24.2.2403"
 #    - install_perl: "%install_active_perl%"
 #      install_padwalker: "%install_active_padwalker%"
 #      version: "5.22.3.2204" # "5.22.0.2200"
@@ -36,6 +36,9 @@ environment:
 #    - install_perl: "%install_active_perl%"
 #      install_padwalker: "%install_active_padwalker%"
 #      version: "5.14.2.2"
+
+cache:
+  - "%LOCALAPPDATA%\\Yarn"
 
 # Install scripts. (runs after repo cloning)
 install:
@@ -50,16 +53,17 @@ install:
   # Get the latest stable version of Node.js or io.js
   - ps: Install-Product node $env:nodejs_version
   # install modules
-  - npm install
+  - yarn
 
 # Post-install test scripts.
 test_script:
   # Output useful info for debugging.
   - node --version
   - npm --version
+  - yarn --version
   - perl --version
   # run tests
-  - npm test
+  - yarn test
 
 # Don't actually build.
 build: off
