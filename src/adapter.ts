@@ -616,7 +616,7 @@ export class perlDebuggerConnection {
 
 	async getPadwalkerVersion(): Promise<string> {
 		const res = await this.request('print $DB::OUT eval { require PadWalker; PadWalker->VERSION() }');
-		const version = res.data[0];
+		const version = res.data[1];
 		if (/^[0-9]+\.?([0-9]?)+$/.test(version)) {
 			return version;
 		}
