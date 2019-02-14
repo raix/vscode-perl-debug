@@ -35,6 +35,25 @@
 			"internalConsoleOptions": "openOnSessionStart"
 		},
 		{
+			"name": "Run Tests in vscode (mocha)",
+			"type": "extensionHost",
+			"request": "launch",
+			"runtimeExecutable": "${execPath}",
+			"args": [
+				"--extensionDevelopmentPath=${workspaceFolder}",
+				"--extensionTestsPath=${workspaceFolder}/out/tests"
+			],
+			"outFiles": [
+				"${workspaceFolder}/out/tests/**/*.js"
+			],
+			"preLaunchTask": "npm: watch",
+			"stopOnEntry": false,
+			"env": {
+				// FIXME: https://github.com/raix/vscode-perl-debug/issues/53
+				"PERL5LIB": "."
+			}
+		},
+		{
 			"type": "perl",
 			"request": "launch",
 			"name": "Run Perl Debugger",
