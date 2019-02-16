@@ -49,8 +49,6 @@
 			"preLaunchTask": "npm: watch",
 			"stopOnEntry": false,
 			"env": {
-				// FIXME: https://github.com/raix/vscode-perl-debug/issues/53
-				"PERL5LIB": "."
 			}
 		},
 		{

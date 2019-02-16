@@ -1,5 +1,7 @@
 #!/bin/perl
 
+use FindBin;
+use lib "$FindBin::Bin";
 use Module;
 
 print "Testing\n";
