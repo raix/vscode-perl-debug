@@ -120,7 +120,7 @@ describe('Perl debug Adapter', () => {
 			]);
 		});
 
-		test.skip('should stop on entry', async () => {
+		it.skip('should stop on entry', async () => {
 			const PROGRAM = Path.join(DATA_ROOT, FILE_FAST_TEST_PL);
 			const ENTRY_LINE = 5;
 
@@ -143,7 +143,7 @@ describe('Perl debug Adapter', () => {
 			await dc.hitBreakpoint(Configuration({ program: PROGRAM }), { path: PROGRAM, line: BREAKPOINT_LINE } );
 		});
 
-		test.skip('hitting a lazy breakpoint should send a breakpoint event', () => {
+		it.skip('hitting a lazy breakpoint should send a breakpoint event', () => {
 
 			const PROGRAM = Path.join(DATA_ROOT, FILE_FAST_TEST_PL);
 			const BREAKPOINT_LINE = 6;
