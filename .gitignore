@@ -3,3 +3,4 @@ node_modules/
 out/
 npm-debug.log
 perl_debugger.log
+*.vsix

@@ -8,9 +8,10 @@
     "name": "Morten Henriksen",
     "email": "mh@gi2.dk"
   },
+  "license": "MIT",
   "engines": {
-    "vscode": "^1.1.0",
-    "node": "^5.10.0"
+    "vscode": ">=1.1.10",
+    "node": ">=8.0.0"
   },
   "icon": "images/vscode-perl-debug.png",
   "categories": [
@@ -42,33 +43,49 @@
     ]
   },
   "dependencies": {
-    "vscode-debugadapter": "^1.19.0",
-    "vscode-debugprotocol": "^1.19.0"
+    "await-notify": "1.0.1",
+    "vscode-debugadapter": "1.19.0",
+    "vscode-debugprotocol": "1.19.0"
   },
   "devDependencies": {
-    "concurrently": "^3.4.0",
     "@types/es6-promise": "0.0.33",
-    "@types/mocha": "^2.2.32",
-    "@types/node": "^8.0.53",
-    "mocha": "^4.0.1",
-    "semantic-release": "^10.0.0",
-    "semantic-release-vsce": "^0.1.1",
-    "typescript": "^2.2.2",
-    "vscode": "^1.1.0",
-    "vscode-debugadapter-testsupport": "^1.19.0",
-    "tslint": "^5.1.0"
+    "@types/jest": "^22.1.2",
+    "@types/node": "8.0.53",
+    "concurrently": "3.4.0",
+    "jest": "^22.2.2",
+    "semantic-release": "10.0.1",
+    "semantic-release-vsce": "0.1.4",
+    "ts-jest": "^22.0.3",
+    "tslint": "5.8.0",
+    "typescript": "2.7.1",
+    "vscode": "1.1.10",
+    "vscode-debugadapter-testsupport": "1.19.0"
   },
   "scripts": {
-    "prepublish": "tsc -p ./src",
-    "compile": "tsc -p ./src",
+    "prepublish": "tsc",
+    "compile": "tsc",
     "tslint": "tslint ./src/**/*.ts",
-    "watch": "tsc -w -p ./src",
-    "test": "tsc -p ./src && mocha -u tdd ./out/tests/",
-    "test:w": "concurrently \"tsc -p ./src\" \"mocha -u tdd ./out/tests/ --watch\"",
+    "watch": "tsc -w",
+    "test": "jest",
+    "test:w": "jest --watch",
     "postinstall": "node ./node_modules/vscode/bin/install",
     "test2": "cd src/tests && electron-mocha ./test.js",
     "publish:vsce": "./publish_vsce.sh",
     "semantic-release": "semantic-release"
+  },
+  "jest": {
+    "transform": {
+      "^.+\\.tsx?$": "ts-jest"
+    },
+    "testRegex": "/src/tests/.*.test.ts$",
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js",
+      "jsx",
+      "json",
+      "node"
+    ]
   },
   "main": "./out/extension",
   "activationEvents": [
@@ -86,6 +103,9 @@
         "label": "Perl Debug",
         "program": "./out/perlDebug.js",
         "runtime": "node",
+        "languages": [
+          "perl"
+        ],
         "configurationAttributes": {
           "launch": {
             "required": [
@@ -106,12 +126,12 @@
               "root": {
                 "type": "string",
                 "description": "Workspace root.",
-                "default": "${workspaceRoot}/"
+                "default": "${workspaceFolder}/"
               },
               "program": {
                 "type": "string",
                 "description": "Absolute path to perl file.",
-                "default": "${workspaceRoot}/${relativeFile}"
+                "default": "${workspaceFolder}/${relativeFile}"
               },
               "stopOnEntry": {
                 "type": "boolean",
@@ -137,11 +157,39 @@
                 "type": "boolean",
                 "description": "Enable logging for the Debug Adapter Protocol",
                 "default": false
+              },
+              "port": {
+                "type": "number",
+                "description": "Port to listen for remote debuggers.",
+                "default": 5000
               }
             }
           }
         },
-        "initialConfigurations": "extension.perl-debug.provideInitialConfigurations"
+        "initialConfigurations": [
+          {
+            "type": "perl",
+            "request": "launch",
+            "name": "Perl-Debug local",
+            "program": "${workspaceFolder}/${relativeFile}",
+            "exec": "perl",
+            "execArgs": [],
+            "root": "${workspaceRoot}/",
+            "inc": [],
+            "args": [],
+            "env": {},
+            "stopOnEntry": true
+          },
+          {
+            "type": "perl",
+            "request": "launch",
+            "name": "Perl-Debug remote",
+            "program": "${workspaceFolder}/${relativeFile}",
+            "root": "${workspaceRoot}/",
+            "stopOnEntry": true,
+            "port": 5000
+          }
+        ]
       }
     ]
   }

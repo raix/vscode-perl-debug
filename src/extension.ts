@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 
 const initialConfigurations = {
-	version: '0.0.6',
+	version: '0.0.7',
 	configurations: [
 	{
 		type: 'perl',
@@ -18,6 +18,7 @@ const initialConfigurations = {
 		args: [],
 		env: {},
 		stopOnEntry: true,
+		port: 0,
 	}
 ]}
 

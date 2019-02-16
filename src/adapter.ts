@@ -4,6 +4,9 @@ import {spawn} from 'child_process';
 import {StreamCatcher} from './streamCatcher';
 import * as RX from './regExp';
 import variableParser, { ParsedVariable, ParsedVariableScope } from './variableParser';
+import { DebugSession, LaunchOptions } from './session';
+import { LocalSession } from './localSession';
+import { RemoteSession } from './remoteSession';
 
 interface ResponseError {
 	filename: string,
@@ -18,12 +21,6 @@ interface Variable {
 	type: string,
 	value: any,
 	variablesReference: number,
-}
-
-interface LaunchOptions {
-	exec?: string;
-	args?: string[];
-	env?: {},
 }
 
 interface StackFrame {
@@ -113,9 +110,10 @@ function relativeFilename(root: string, filename: string): string {
 
 export class perlDebuggerConnection {
 	public debug: boolean = false;
-	private perlDebugger;
+	public perlDebugger: DebugSession;
 	public streamCatcher: StreamCatcher;
 	public perlVersion: string;
+	public padwalkerVersion: string;
 	public commandRunning: string = '';
 
 	private filename?: string;
@@ -244,6 +242,11 @@ export class perlDebuggerConnection {
 			}
 		});
 
+		if (res.exception || res.finished) {
+			// Close the connection to perl debugger
+			this.perlDebugger.kill();
+		}
+
 		if (res.exception) {
 			if (typeof this.onException === 'function') {
 				try {
@@ -284,43 +287,34 @@ export class perlDebuggerConnection {
 				console.log(`env.${key}: "${options.env[key]}"`);
 			});
 		}
-		if (this.debug) console.log(`Launch "perl -d ${sourceFile}" in "${cwd}"`);
-
-		this.logOutput(`Platform: ${process.platform}`);
-
-		this.logOutput(`Launch "perl -d ${sourceFile}" in "${cwd}"`);
 
 		// Verify file and folder existence
 		// xxx: We can improve the error handling
 		if (!fs.existsSync(sourceFile)) this.logOutput( `Error: File ${sourceFile} not found`);
 		if (cwd && !fs.existsSync(cwd)) this.logOutput( `Error: Folder ${cwd} not found`);
 
-		const perlCommand = options.exec || 'perl';
-		const programArguments = options.args || [];
+		this.logOutput(`Platform: ${process.platform}`);
+		this.logOutput(`Launch "perl -d ${sourceFile}" in "${cwd}"`);
 
-		const commandArgs = [].concat(args, [ '-d', sourceFile /*, '-emacs'*/], programArguments);
-		this.commandRunning = `${perlCommand} ${commandArgs.join(' ')}`;
-		this.logOutput(this.commandRunning);
-
-		const spawnOptions = {
-			detached: true,
-			cwd: cwd || undefined,
-			env: {
-				COLUMNS: 80,
-				LINES: 25,
-				TERM: 'dumb',
-				...options.env,
-			},
-		};
 
 		// xxx: add failure handling
-		this.perlDebugger = spawn(perlCommand, commandArgs, spawnOptions);
+		if (!options.port) {
+			// If no port is configured then run this locally in a fork
+			this.perlDebugger = new LocalSession(filename, cwd, args, options);
+			this.logOutput(this.perlDebugger.title());
+		} else {
+			// If port is configured then use the remote session.
+			this.logOutput(`Waiting for remote debugger to connect on port "${options.port}"`);
+			this.perlDebugger = new RemoteSession(options.port);
+		}
+
+		this.commandRunning = this.perlDebugger.title();
 
 		this.perlDebugger.on('error', (err) => {
 			if (this.debug) console.log('error:', err);
 			this.logOutput( `Error`);
 			this.logOutput( err );
-			this.logOutput( `DUMP: spawn(${perlCommand}, ${JSON.stringify(commandArgs)}, ${JSON.stringify(spawnOptions)});` );
+			this.logOutput( `DUMP: ${this.perlDebugger.dump()}` );
 		});
 
 		this.streamCatcher.launch(this.perlDebugger.stdin, this.perlDebugger.stderr);
@@ -351,6 +345,15 @@ export class perlDebuggerConnection {
 
 		// Depend on the data dumper for the watcher
 		// await this.streamCatcher.request('use Data::Dumper');
+		await this.streamCatcher.request('$DB::single = 1;');
+
+		// xxx: Prevent buffering issues ref: https://github.com/raix/vscode-perl-debug/issues/15#issuecomment-331435911
+		await this.streamCatcher.request('$| = 1;');
+
+		// if (options.port) {
+			// xxx: This will mix stderr and stdout into one dbout
+			// await this.streamCatcher.request('select($DB::OUT);');
+		// }
 
 		// Listen for a ready signal
 		const data = await this.streamCatcher.isReady()
@@ -362,6 +365,13 @@ export class perlDebuggerConnection {
 		} catch(ignore) {
 			// xxx: We have to ignore this error because it would intercept the true
 			// error on windows
+		}
+
+		try {
+			this.padwalkerVersion = await this.getPadwalkerVersion();
+		} catch(ignore) {
+			// xxx: Ignore errors - it should not break anything, this is used to
+			// inform the user of a missing dependency install of PadWalker
 		}
 
 		return this.parseResponse(data);
@@ -536,6 +546,19 @@ export class perlDebuggerConnection {
 	}
 
 	async variableList(scopes): Promise<ParsedVariableScope> {
+		// If padwalker not found then tell the user via the variable inspection
+		// instead of being empty.
+		if (!this.padwalkerVersion) {
+			return {
+				local_0: [{
+					name: 'PadWalker',
+					value: 'Not installed',
+					type: 'string',
+					variablesReference: '0',
+				}],
+			};
+		}
+
 		const keys = Object.keys(scopes);
 		let result: ParsedVariableScope = {};
 
@@ -589,6 +612,14 @@ export class perlDebuggerConnection {
 	async getPerlVersion(): Promise<string> {
 		const res = await this.request('p $]');
 		return res.data[0];
+	}
+
+	async getPadwalkerVersion(): Promise<string> {
+		const res = await this.request('print $DB::OUT eval { require PadWalker; PadWalker->VERSION() }');
+		const version = res.data[0];
+		if (/^[0-9]+\.?([0-9]?)+$/.test(version)) {
+			return version;
+		}
 	}
 
 	async resolveFilename(filename): Promise<string> {

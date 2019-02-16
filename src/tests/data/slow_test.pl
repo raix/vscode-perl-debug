@@ -8,6 +8,6 @@ my $foo = "foo";
 for my $i (0..5) {
     print "pre test..\n";
     Module::test();
-    sleep(1);
+    sleep(0.01);
     print "$i sec\n"
 }

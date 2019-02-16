@@ -10,7 +10,7 @@ import {DebugClient} from 'vscode-debugadapter-testsupport';
 import {DebugProtocol} from 'vscode-debugprotocol';
 
 
-suite('Perl debug Adapter', () => {
+describe('Perl debug Adapter', () => {
 
 	const DEBUG_ADAPTER = './out/perlDebug.js';
 
@@ -62,19 +62,19 @@ suite('Perl debug Adapter', () => {
 
 	let dc: DebugClient;
 
-	setup( () => {
+	beforeEach( () => {
 		dc = new DebugClient('node', DEBUG_ADAPTER, 'perl');
 		return dc.start();
 	});
 
-	teardown(() => {
+	afterEach(() => {
 		dc.stop();
 		printLogFile();
 	});
 
-	suite('basic', () => {
+	describe('basic', () => {
 
-		test('unknown request should produce error', done => {
+		it('unknown request should produce error', done => {
 			dc.send('illegal_request').then(() => {
 				done(new Error("does not report error on unknown request"));
 			}).catch(() => {
@@ -83,15 +83,15 @@ suite('Perl debug Adapter', () => {
 		});
 	});
 
-	suite('initialize', () => {
+	describe('initialize', () => {
 
-		test('should return supported features', () => {
+		it('should return supported features', () => {
 			return dc.initializeRequest().then(response => {
 				assert.equal(response.body.supportsConfigurationDoneRequest, true);
 			});
 		});
 
-		test('should produce error for invalid \'pathFormat\'', done => {
+		it('should produce error for invalid \'pathFormat\'', done => {
 			dc.initializeRequest({
 				adapterID: 'mock',
 				linesStartAt1: true,
@@ -106,9 +106,9 @@ suite('Perl debug Adapter', () => {
 		});
 	});
 
-	suite('launch', () => {
+	describe('launch', () => {
 
-		test('should run program to the end', async () => {
+		it('should run program to the end', async () => {
 			const PROGRAM = Path.join(DATA_ROOT, FILE_FAST_TEST_PL);
 
 			assert.ok(fs.existsSync(PROGRAM), `Test program "${PROGRAM}" not found`);
@@ -120,7 +120,7 @@ suite('Perl debug Adapter', () => {
 			]);
 		});
 
-		test.skip('should stop on entry', async () => {
+		it.skip('should stop on entry', async () => {
 			const PROGRAM = Path.join(DATA_ROOT, FILE_FAST_TEST_PL);
 			const ENTRY_LINE = 5;
 
@@ -132,9 +132,9 @@ suite('Perl debug Adapter', () => {
 
 	// xxx: Need to figure out this test
 	// hint: It might be a missing "stop" event - is the application run?
-	suite.skip('setBreakpoints', () => {
+	describe.skip('setBreakpoints', () => {
 
-		test('should stop on a breakpoint', async () => {
+		it('should stop on a breakpoint', async () => {
 			const PROGRAM = Path.join(DATA_ROOT, FILE_FAST_TEST_PL);
 			const BREAKPOINT_LINE = 9;
 
@@ -143,7 +143,7 @@ suite('Perl debug Adapter', () => {
 			await dc.hitBreakpoint(Configuration({ program: PROGRAM }), { path: PROGRAM, line: BREAKPOINT_LINE } );
 		});
 
-		test.skip('hitting a lazy breakpoint should send a breakpoint event', () => {
+		it.skip('hitting a lazy breakpoint should send a breakpoint event', () => {
 
 			const PROGRAM = Path.join(DATA_ROOT, FILE_FAST_TEST_PL);
 			const BREAKPOINT_LINE = 6;
@@ -160,9 +160,9 @@ suite('Perl debug Adapter', () => {
 	});
 
 	// TODO: Need to be able to replicate this
-	suite.skip('setExceptionBreakpoints', () => {
+	describe.skip('setExceptionBreakpoints', () => {
 
-		test('should stop on an exception', () => {
+		it('should stop on an exception', () => {
 
 			const PROGRAM_WITH_EXCEPTION = Path.join(DATA_ROOT, FILE_BROKEN_CODE);
 			const EXCEPTION_LINE = 10;

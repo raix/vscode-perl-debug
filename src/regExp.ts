@@ -50,3 +50,5 @@ export const codeErrorRuntime = /([\S|\s]+) at (\S+) line ([0-9]+)\.$/;
 
 // EG. PadWalker for scope investigation
 export const codeErrorMissingModule = /^(\S+) module not found - please install$/;
+
+export const debuggerSignature = /^  DB<[0-9]+> $/;

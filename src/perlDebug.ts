@@ -10,6 +10,7 @@ import {DebugProtocol} from 'vscode-debugprotocol';
 import {readFileSync} from 'fs';
 import {basename, dirname, join} from 'path';
 import {spawn, ChildProcess} from 'child_process';
+const { Subject } = require('await-notify');
 import { perlDebuggerConnection } from './adapter';
 import { variableType, ParsedVariable, ParsedVariableScope, resolveVariable } from './variableParser';
 
@@ -35,6 +36,8 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
 	trace?: boolean;
 	/** env variables when executing debugger */
 	env?: {};
+	/** port for debugger to listen for remote debuggers */
+	port?,
 }
 
 class PerlDebugSession extends LoggingDebugSession {
@@ -66,6 +69,8 @@ class PerlDebugSession extends LoggingDebugSession {
 	}
 
 	private rootPath: string = '';
+
+	private _configurationDone = new Subject();
 
    /* protected convertClientPathToDebugger(clientPath: string): string {
 		return clientPath.replace(this.rootPath, '');
@@ -117,19 +122,27 @@ class PerlDebugSession extends LoggingDebugSession {
 			});
 	}
 
-	protected launchRequest(response: DebugProtocol.LaunchResponse, args: LaunchRequestArguments): void {
+	/**
+	 * Called at the end of the configuration sequence.
+	 * Indicates that all breakpoints etc. have been sent to the DA and that the 'launch' can start.
+	 */
+	protected configurationDoneRequest(response: DebugProtocol.ConfigurationDoneResponse, args: DebugProtocol.ConfigurationDoneArguments): void {
+		super.configurationDoneRequest(response, args);
+
+		// notify the launchRequest that configuration has finished
+		this._configurationDone.notify();
+	}
+
+	protected async launchRequest(response: DebugProtocol.LaunchResponse, args: LaunchRequestArguments) {
 		this.rootPath = args.root;
 
 		const inc = args.inc && args.inc.length ? args.inc.map(directory => `-I${directory}`) : [];
 		const execArgs = [].concat(args.execArgs || [], inc);
 		const programArguments = args.args || [];
 
-		if (args.trace) {
-			logger.setup(Logger.LogLevel.Verbose, /*logToFile=*/true);
-		} else {
-			logger.setup(Logger.LogLevel.Stop, false);
-		}
+		logger.setup(args.trace ? Logger.LogLevel.Verbose : Logger.LogLevel.Stop, false);
 
+		await this._configurationDone.wait(1000);
 		this.perlDebugger.launchRequest(args.program, args.root, execArgs, {
 			exec: args.exec,
 			args: programArguments,
@@ -139,6 +152,7 @@ class PerlDebugSession extends LoggingDebugSession {
 				PERL5LIB: process.env.PERL5LIB || '',
 				...args.env
 			},
+			port: args.port || undefined,
 		})
 			.then((res) => {
 				if (args.stopOnEntry) {
