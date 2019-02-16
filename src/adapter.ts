@@ -486,12 +486,12 @@ export class perlDebuggerConnection {
 	}
 
 	async getVariableReference(name: string): Promise<string> {
-		const res = await this.request(`print STDERR \\${name}`);
+		const res = await this.request(`print { $DB::OUT } \\${name}`);
 		return res.data[0];
 	}
 
 	async getExpressionValue(expression: string): Promise<string> {
-		const res = await this.request(`print STDERR ${expression}`);
+		const res = await this.request(`print { $DB::OUT } ${expression}`);
 		return res.data.pop();
 	}
 
