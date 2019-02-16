@@ -8,7 +8,7 @@ export const breakPoint = {
 	condition: /^    break/,
 	// This looks like a filename eg.:
 	// 'test.pl:'
-	filename: /^([a-zA-Z.\_\-0-9]+)\:$/,
+	filename: /^([a-zA-Z.\_\-0-9\/]+)\:$/,
 	// Got a line nr eg.:
 	// '5:\tprint "Testing\\n";'
 	ln: /^ ([0-9]+):/,
@@ -40,7 +40,7 @@ export const lastCommandLine = {
 	}
 };
 
-export const fileMatch = /^[a-zA-Z]+::\(([a-zA-Z\._-]+):([0-9]+)\):/;
+export const fileMatch = /^[a-zA-Z]+::\((.+):([0-9]+)\):($|\t.*)/;
 
 export const fileMatchException = /at ([a-zA-Z\._-]+) line ([0-9]+)\./;
 

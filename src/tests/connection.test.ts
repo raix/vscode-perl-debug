@@ -9,7 +9,7 @@ const DATA_ROOT = Path.join(PROJECT_ROOT, 'src/tests/data/');
 
 const FILE_TEST_PL = 'slow_test.pl';
 const FILE_TEST_NESTED_PL = 'test_nested.pl';
-const FILE_MODULE = 'Module.pm';
+const FILE_MODULE = Path.resolve(DATA_ROOT, 'Module.pm');
 const FILE_NESTED_MODULE = 'Module2.pm';
 const FILE_FICTIVE = 'Fictive.pl';
 const FILE_BROKEN_SYNTAX = 'broken_syntax.pl';
@@ -43,14 +43,14 @@ describe('Perl debugger connection', () => {
 			const res = await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
 			assert.equal(res.finished, false);
 			assert.equal(res.exception, false);
-			assert.equal(res.ln, 5); // The first code line in test.pl is 5
+			assert.equal(res.ln, 7); // The first code line in test.pl is 5
 		});
 
 		it('Should be able to connect and launch ' + FILE_BROKEN_CODE, async () => {
 			const res = await conn.launchRequest(FILE_BROKEN_CODE, DATA_ROOT, [], launchOptions);
 			assert.equal(res.finished, false);
 			assert.equal(res.exception, false);
-			assert.equal(res.ln, 5);
+			assert.equal(res.ln, 7);
 		});
 
 		it('Should be able to connect and launch remote ' + FILE_TEST_PL, async () => {
@@ -79,7 +79,7 @@ describe('Perl debugger connection', () => {
 			assert.equal(local.title(), `perl -d ${FILE_TEST_PL}`);
 			assert.equal(res.finished, false);
 			assert.equal(res.exception, false);
-			assert.equal(res.ln, 5); // The first code line in test.pl is 5
+			assert.equal(res.ln, 7); // The first code line in test.pl is 5
 		});
 
 		it('Should error when launching ' + FILE_BROKEN_SYNTAX, async () => {
@@ -98,7 +98,7 @@ describe('Perl debugger connection', () => {
 			await conn.continue();
 			// xxx: It would have been nice if we had a stable way of catching the application output
 			// using the actual application output for validation
-			assert.equal(conn.commandRunning, 'perl -d print_arguments.pl foo=bar test=ok')
+			assert.equal(conn.commandRunning, 'perl -d ' + FILE_PRINT_ARGUMENTS + ' foo=bar test=ok')
 		});
 	});
 
@@ -121,21 +121,21 @@ describe('Perl debugger connection', () => {
 	});
 
 	describe('setBreakPoint', () => {
-		it('Should be able to set break point on line 5 in current file', async () => {
+		it('Should be able to set break point on line 7 in current file', async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
-			await conn.setBreakPoint(5);
+			await conn.setBreakPoint(7);
 		});
-		it('Should not be able to set breakpoint on line 7 in current file', async () => {
+		it('Should not be able to set breakpoint on line 9 in current file', async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
-			await asyncAssert.throws(conn.setBreakPoint(7));
+			await asyncAssert.throws(conn.setBreakPoint(9));
 		});
-		it('Should be able to set break point on line 5 in ' + FILE_TEST_PL, async () => {
+		it('Should be able to set break point on line 7 in ' + FILE_TEST_PL, async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
-			await conn.setBreakPoint(5, FILE_TEST_PL);
+			await conn.setBreakPoint(7, FILE_TEST_PL);
 		});
-		it('Should not be able to set breakpoint on line 7 in ' + FILE_TEST_PL, async () => {
+		it('Should not be able to set breakpoint on line 9 in ' + FILE_TEST_PL, async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
-			await asyncAssert.throws(conn.setBreakPoint(7, FILE_TEST_PL));
+			await asyncAssert.throws(conn.setBreakPoint(9, FILE_TEST_PL));
 		});
 		it('Should be able to set break point on line 4 in ' + FILE_MODULE, async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
@@ -145,9 +145,9 @@ describe('Perl debugger connection', () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
 			await asyncAssert.throws(conn.setBreakPoint(3, FILE_MODULE));
 		});
-		it('Should not be able to set breakpoint on line 5 in ' + FILE_FICTIVE, async () => {
+		it('Should not be able to set breakpoint on line 7 in ' + FILE_FICTIVE, async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
-			await asyncAssert.throws(conn.setBreakPoint(5, FILE_FICTIVE));
+			await asyncAssert.throws(conn.setBreakPoint(7, FILE_FICTIVE));
 		});
 	});
 
@@ -158,58 +158,58 @@ describe('Perl debugger connection', () => {
 		});
 		it('Should work if only one file is added', async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
-			await conn.setBreakPoint(5);
-			assert.deepEqual(await conn.getBreakPoints(), { [FILE_TEST_PL]: [ 5 ] });
+			await conn.setBreakPoint(7);
+			assert.deepEqual(await conn.getBreakPoints(), { [FILE_TEST_PL]: [ 7 ] });
 		});
 		it('Should work if multiple breakpoints are added for one file', async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
-			await conn.setBreakPoint(5);
-			await conn.setBreakPoint(6);
+			await conn.setBreakPoint(7);
 			await conn.setBreakPoint(8);
-			await conn.setBreakPoint(9);
 			await conn.setBreakPoint(10);
 			await conn.setBreakPoint(11);
-			assert.deepEqual(await conn.getBreakPoints(), { [FILE_TEST_PL]: [ 5, 6, 8, 9, 10, 11 ] });
+			await conn.setBreakPoint(12);
+			await conn.setBreakPoint(13);
+			assert.deepEqual(await conn.getBreakPoints(), { [FILE_TEST_PL]: [ 7, 8, 10, 11, 12, 13 ] });
 		});
 		it('Should work if multiple breakpoints are added for multiple files', async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
-			await conn.setBreakPoint(5);
-			await conn.setBreakPoint(8, FILE_TEST_PL);
-			await conn.setBreakPoint(9, FILE_TEST_PL);
+			await conn.setBreakPoint(7);
 			await conn.setBreakPoint(10, FILE_TEST_PL);
 			await conn.setBreakPoint(11, FILE_TEST_PL);
+			await conn.setBreakPoint(12, FILE_TEST_PL);
+			await conn.setBreakPoint(13, FILE_TEST_PL);
 
 			await conn.setBreakPoint(4, FILE_MODULE);
 			await conn.setBreakPoint(5, FILE_MODULE);
 			// Let's do something out of order...
-			await conn.setBreakPoint(6);
+			await conn.setBreakPoint(8);
 			// Let's try setting the same breakpoint twice...
 			await conn.setBreakPoint(5, FILE_MODULE);
 
-			assert.deepEqual(await conn.getBreakPoints(), { [FILE_TEST_PL]: [ 5, 6, 8, 9, 10, 11 ], [FILE_MODULE]: [ 4, 5 ] });
+			assert.deepEqual(await conn.getBreakPoints(), { [FILE_TEST_PL]: [ 7, 8, 10, 11, 12, 13 ], [FILE_MODULE]: [ 4, 5 ] });
 		});
 	});
 
 	describe('clearBreakPoint', () => {
 		it('Should allow clearing one breakpoint', async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
-			await conn.setBreakPoint(5);
-			await conn.setBreakPoint(6);
-			await conn.setBreakPoint(8, FILE_TEST_PL);
-			await conn.setBreakPoint(9, FILE_TEST_PL);
+			await conn.setBreakPoint(7);
+			await conn.setBreakPoint(8);
 			await conn.setBreakPoint(10, FILE_TEST_PL);
 			await conn.setBreakPoint(11, FILE_TEST_PL);
+			await conn.setBreakPoint(12, FILE_TEST_PL);
+			await conn.setBreakPoint(13, FILE_TEST_PL);
 
 			await conn.setBreakPoint(4, FILE_MODULE);
 			await conn.setBreakPoint(5, FILE_MODULE);
 
-			assert.deepEqual(await conn.getBreakPoints(), { [FILE_TEST_PL]: [ 5, 6, 8, 9, 10, 11 ], [FILE_MODULE]: [ 4, 5 ] });
+			assert.deepEqual(await conn.getBreakPoints(), { [FILE_TEST_PL]: [ 7, 8, 10, 11, 12, 13 ], [FILE_MODULE]: [ 4, 5 ] });
 
-			await conn.clearBreakPoint(5);
-			await conn.clearBreakPoint(8, FILE_TEST_PL);
+			await conn.clearBreakPoint(7);
+			await conn.clearBreakPoint(10, FILE_TEST_PL);
 			await conn.clearBreakPoint(5, FILE_MODULE);
 
-			assert.deepEqual(await conn.getBreakPoints(), { [FILE_TEST_PL]: [ 6, 9, 10, 11 ], [FILE_MODULE]: [ 4 ] });
+			assert.deepEqual(await conn.getBreakPoints(), { [FILE_TEST_PL]: [ 8, 11, 12, 13 ], [FILE_MODULE]: [ 4 ] });
 
 		});
 	});
@@ -217,11 +217,11 @@ describe('Perl debugger connection', () => {
 	describe('clearBreakPoint', () => {
 		it('Should allow clearing all breakpoints', async () => {
 			await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
-			await conn.setBreakPoint(5);
-			await conn.setBreakPoint(8, FILE_TEST_PL);
+			await conn.setBreakPoint(7);
+			await conn.setBreakPoint(10, FILE_TEST_PL);
 			await conn.setBreakPoint(4, FILE_MODULE);
 
-			assert.deepEqual(await conn.getBreakPoints(), { [FILE_MODULE]: [ 4 ], [FILE_TEST_PL]: [ 5, 8 ] });
+			assert.deepEqual(await conn.getBreakPoints(), { [FILE_MODULE]: [ 4 ], [FILE_TEST_PL]: [ 7, 10 ] });
 
 			await conn.clearAllBreakPoints();
 
@@ -232,21 +232,21 @@ describe('Perl debugger connection', () => {
 
 	describe('Test debugger', () => {
 		describe('continue', () => {
-			it('Should leave us at line 9 in ' + FILE_TEST_PL, async () => {
+			it('Should leave us at line 11 in ' + FILE_TEST_PL, async () => {
 				await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
-				await conn.setBreakPoint(9, FILE_TEST_PL);
+				await conn.setBreakPoint(11, FILE_TEST_PL);
 				const res = await conn.continue();
-				assert.equal(res.ln, 9);
+				assert.equal(res.ln, 11);
 			});
 
 			it('Should throw an error ' + FILE_BROKEN_CODE, async () => {
 				await conn.launchRequest(FILE_BROKEN_CODE, DATA_ROOT, [], launchOptions);
-				await conn.setBreakPoint(9, FILE_BROKEN_CODE);
-				// In between we have broken code
 				await conn.setBreakPoint(11, FILE_BROKEN_CODE);
+				// In between we have broken code
+				await conn.setBreakPoint(13, FILE_BROKEN_CODE);
 
 				const res = await conn.continue();
-				assert.equal(res.ln, 9);
+				assert.equal(res.ln, 11);
 				// In between we have broken code
 				const res_broken = <RequestResponse>await asyncAssert.throws(conn.continue());
 
@@ -258,9 +258,9 @@ describe('Perl debugger connection', () => {
 		describe('next', () => {
 			it('Should go to next statement', async () => {
 				let res = await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
-				assert.equal(res.ln, 5);
+				assert.equal(res.ln, 7);
 				res = await conn.next();
-				assert.equal(res.ln, 6);
+				assert.equal(res.ln, 8);
 			});
 		});
 
@@ -298,16 +298,16 @@ describe('Perl debugger connection', () => {
 		describe('restart', () => {
 			it('Should start from the beginning', async () => {
 				let res = await conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], launchOptions);
-				assert.equal(res.ln, 5);
+				assert.equal(res.ln, 7);
 				res = await conn.next();
-				assert.equal(res.ln, 6);
+				assert.equal(res.ln, 8);
 				res = await conn.restart();
 				if (/^win/.test(process.platform)) {
 					// xxx: On windows we ned to respawn the debugger
 					// it might be "inhibit_exit" is not working on windows
 					// causing us to workaround...
 				} else {
-					assert.equal(res.ln, 5);
+					assert.equal(res.ln, 7);
 				}
 			});
 		});
