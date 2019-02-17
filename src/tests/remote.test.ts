@@ -61,7 +61,7 @@ describe('Perl debugger connection', () => {
 		assert.equal(Number.parseInt(expressionValue), local.pid);
 		assert.equal(res.finished, false);
 		assert.equal(res.exception, false);
-		assert.equal(res.ln, 5); // The first code line in test.pl is 5
+		assert.equal(res.ln, 7); // The first code line in test.pl is 7
 	});
 
 });
