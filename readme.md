@@ -115,6 +115,7 @@ and none of these are perfect/consistent dependencies, therefor hard to track do
 
 Please keep in mind that I'm an ES developer, I don't know all
 the corners of perl - so any help is appriciated.
+*(Extension is using semantic release for vs code extensions, commit messages should be formatted accordingly)*
 
 Kind regards
 
