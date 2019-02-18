@@ -30,12 +30,12 @@
       "semantic-release-vsce",
       "@semantic-release/github"
     ],
-    "getLastRelease": "semantic-release-vsce",
+    "prepare": {
+      "path": "semantic-release-vsce",
+      "packageVsix": "mortenhenriksen.perl-debug.vsix"
+    },
     "publish": [
-      {
-        "path": "semantic-release-vsce",
-        "packageVsix": "mortenhenriksen.perl-debug.vsix"
-      },
+      "semantic-release-vsce",
       {
         "path": "@semantic-release/github",
         "assets": "mortenhenriksen.perl-debug.vsix"
@@ -56,8 +56,8 @@
     "concurrently": "3.4.0",
     "husky": "^1.3.1",
     "jest": "^22.2.2",
-    "semantic-release": "10.0.1",
-    "semantic-release-vsce": "0.1.4",
+    "semantic-release": "15.13.3",
+    "semantic-release-vsce": "2.2.6",
     "ts-jest": "^22.0.3",
     "tslint": "5.8.0",
     "typescript": "2.7.1",
@@ -73,7 +73,6 @@
     "test:w": "jest --watch",
     "postinstall": "node ./node_modules/vscode/bin/install",
     "test2": "cd src/tests && electron-mocha ./test.js",
-    "publish:vsce": "./publish_vsce.sh",
     "semantic-release": "semantic-release"
   },
   "jest": {
