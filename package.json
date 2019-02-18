@@ -49,7 +49,7 @@
   },
   "devDependencies": {
     "@types/es6-promise": "0.0.33",
-    "@types/jest": "^22.1.2",
+    "@types/jest": "^24.0.6",
     "@types/node": "8.0.53",
     "concurrently": "3.4.0",
     "jest": "^22.2.2",
