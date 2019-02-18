@@ -116,9 +116,9 @@ and none of these are perfect/consistent dependencies, therefor hard to track do
 Please keep in mind that I'm an ES developer, I don't know all
 the corners of perl - so any help is appriciated.
 
-This project is using `semantic release` and `commitlint` for vs code extensions,
-commit messages should be formatted accordingly and should trigger correct
-versioning and automatic releases.
+This project is using `semantic release` and `commitlint` for vs code extensions.
+*Commit messages should be formatted accordingly and should trigger correct*
+*versioning and automatic release / publish in the extension gallary.*
 
 Kind regards
 
