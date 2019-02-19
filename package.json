@@ -10,7 +10,7 @@
   },
   "license": "MIT",
   "engines": {
-    "vscode": ">=1.1.10",
+    "vscode": ">=1.9.0",
     "node": ">=8.0.0"
   },
   "icon": "images/vscode-perl-debug.png",

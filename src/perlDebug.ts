@@ -237,7 +237,7 @@ class PerlDebugSession extends LoggingDebugSession {
 		const newBreakpoints: string[] = args.breakpoints.map(bp => { return bp.name });
 		const neoBreakpoints: DebugProtocol.FunctionBreakpoint[] = [];
 
-		for (var i = 0; i < this._functionBreakPoints.length; i++) {
+		for (let i = 0; i < this._functionBreakPoints.length; i++) {
 			const name = this._functionBreakPoints[i];
 			if (newBreakpoints.indexOf(name) < 0) {
 				this.sendEvent(new OutputEvent(`Remove ${name}\n`));
@@ -245,7 +245,7 @@ class PerlDebugSession extends LoggingDebugSession {
 			}
 		}
 
-		for (var i = 0; i < args.breakpoints.length; i++) {
+		for (let i = 0; i < args.breakpoints.length; i++) {
 			const bp = args.breakpoints[i];
 			if (this._functionBreakPoints.indexOf(bp.name) < 0) {
 				breakpoints.push(bp.name);
@@ -398,8 +398,7 @@ class PerlDebugSession extends LoggingDebugSession {
 	 */
 	private async setBreakPointsRequestAsync(response: DebugProtocol.SetBreakpointsResponse, args: DebugProtocol.SetBreakpointsArguments): Promise<DebugProtocol.SetBreakpointsResponse> {
 
-		var path = args.source.path;
-		var clientLines = args.lines;
+		const path = args.source.path;
 
 		const debugPath = await this.perlDebugger.relativePath(path);
 		const editorExisting = this._breakPoints.get(path);
@@ -408,7 +407,7 @@ class PerlDebugSession extends LoggingDebugSession {
 		const debuggerPBs: number[] = (await this.perlDebugger.getBreakPoints())[debugPath] || [];
 		const createBP: number[] = [];
 		const removeBP: number[] = [];
-		var breakpoints = new Array<Breakpoint>();
+		const breakpoints = new Array<Breakpoint>();
 
 		// Clean up debugger removing unset bps
 		for (let i = 0; i < debuggerPBs.length; i++) {
@@ -732,7 +731,9 @@ class PerlDebugSession extends LoggingDebugSession {
 			}
 		});
 
-		if (endFrame) frames.unshift(endFrame);
+		if (endFrame) {
+			frames.unshift(endFrame);
+		}
 
 		response.body = {
 			stackFrames: frames,

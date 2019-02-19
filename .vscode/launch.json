@@ -17,6 +17,7 @@
 			"type": "node",
 			"request": "launch",
 			"name": "Run Server",
+			"preLaunchTask": "yarn",
 			"cwd": "${workspaceFolder}",
 			"program": "${workspaceFolder}/src/perlDebug.ts",
 			"args": [ "--server=4711" ],
@@ -27,11 +28,14 @@
 			"type": "node",
 			"request": "launch",
 			"name": "Run Tests",
+			"preLaunchTask": "yarn",
 			"cwd": "${workspaceFolder}",
 			"program": "yarn test",
 			"args": [],
 			"sourceMaps": true,
-			"outDir": "${workspaceFolder}/out",
+			"outFiles": [
+				"${workspaceFolder}/out/tests/**/*.js"
+			],
 			"internalConsoleOptions": "openOnSessionStart"
 		},
 		{
@@ -52,10 +56,11 @@
 			}
 		},
 		{
+			"root": "${workspaceFolder}/",
 			"type": "perl",
 			"request": "launch",
 			"name": "Run Perl Debugger",
-			"program": "${workspaceFolder}/${command.AskForProgramName}",
+			"program": "${workspaceFolder}/${command:AskForProgramName}",
 			"stopOnEntry": true
 		}
 	]
