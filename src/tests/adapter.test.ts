@@ -140,7 +140,12 @@ describe('Perl debug Adapter', () => {
 
 			const ENTRY_LINE = 7;
 
-			await dc.launch(Configuration({ program: PROGRAM, stopOnEntry: true }));
+			await dc.launch(Configuration({
+				program: PROGRAM,
+				stopOnEntry: true,
+				console: 'deprecatedDebugConsole'
+			}));
+
 			await dc.assertStoppedLocation('entry', { line: ENTRY_LINE } );
 		});
 	});
