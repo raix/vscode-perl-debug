@@ -7,6 +7,11 @@ import variableParser, { ParsedVariable, ParsedVariableScope } from './variableP
 import { DebugSession, LaunchOptions } from './session';
 import { LocalSession } from './localSession';
 import { RemoteSession } from './remoteSession';
+import { PerlDebugSession } from './perlDebug';
+
+import {
+	Event as VscodeEvent
+} from 'vscode-debugadapter';
 
 interface ResponseError {
 	filename: string,
@@ -116,6 +121,8 @@ export class perlDebuggerConnection {
 	public padwalkerVersion: string;
 	public commandRunning: string = '';
 
+	private session: PerlDebugSession | null;
+
 	private filename?: string;
 	private rootPath?: string;
 	private currentfile?: string;
@@ -130,11 +137,13 @@ export class perlDebuggerConnection {
 	 * Pass in the initial script and optional additional arguments for
 	 * running the script.
 	 */
-	constructor() {
+	constructor(session: PerlDebugSession) {
+		this.session = session;
 		this.streamCatcher = new StreamCatcher();
 	}
 
-	async initializeRequest() {}
+	async initializeRequest() {
+	}
 
 	logOutput(data: string) {
 		if (typeof this.onOutput === 'function') {
@@ -150,6 +159,12 @@ export class perlDebuggerConnection {
 		data.forEach((val, i) => {
 			this.logOutput(`${prefix}${val}`);
 		});
+	}
+
+	logDebug(...args: any[]) {
+		if (this.debug) {
+			console.log(...args);
+		}
 	}
 
 	parseResponse(data: string[]): RequestResponse {
@@ -173,7 +188,9 @@ export class perlDebuggerConnection {
 			} else if (i === res.orgData.length - 1) {
 				// DB
 				const dbX = RX.lastCommandLine.match(line);
-				if (dbX) res.db = dbX[1];
+				if (dbX) {
+					res.db = dbX[1];
+				}
 			} else {
 				// Contents
 				line = line.replace(RX.colors, '');
@@ -265,7 +282,7 @@ export class perlDebuggerConnection {
 			}
 		}
 
-		if (this.debug) console.log(res);
+		this.logDebug(res);
 
 		if (res.exception) {
 			throw res;
@@ -275,43 +292,148 @@ export class perlDebuggerConnection {
 	}
 
 	async launchRequest(filename: string, cwd: string, args: string[] = [], options:LaunchOptions = {}): Promise<RequestResponse> {
+
 		this.rootPath = cwd;
 		this.filename = filename;
 		this.currentfile = filename;
 		const sourceFile = filename;
 
-		if (this.debug) console.log(`Platform: ${process.platform}`);
-		if (this.debug && options.env) {
-			const keys = Object.keys(options.env);
-			keys.forEach(key => {
-				console.log(`env.${key}: "${options.env[key]}"`);
-			});
-		}
+		this.logDebug(`Platform: ${process.platform}`);
+
+		Object.keys(options.env || {}).forEach(key => {
+			this.logDebug(`env.${key}: "${options.env[key]}"`);
+		});
 
 		// Verify file and folder existence
 		// xxx: We can improve the error handling
-		if (!fs.existsSync(sourceFile)) this.logOutput( `Error: File ${sourceFile} not found`);
-		if (cwd && !fs.existsSync(cwd)) this.logOutput( `Error: Folder ${cwd} not found`);
+
+		// FIXME(bh): does it make sense to have a source file here when
+		// we just create a server for a remote client to connect to? It
+		// seems it should be possible to `F5` without specifying a file.
+
+		if (!fs.existsSync(sourceFile)) {
+			this.logOutput( `Error: File ${sourceFile} not found`);
+		}
+
+		if (cwd && !fs.existsSync(cwd)) {
+			this.logOutput( `Error: Folder ${cwd} not found`);
+		}
 
 		this.logOutput(`Platform: ${process.platform}`);
-		this.logOutput(`Launch "perl -d ${sourceFile}" in "${cwd}"`);
 
+		switch (options.console) {
 
-		// xxx: add failure handling
-		if (!options.port) {
-			// If no port is configured then run this locally in a fork
-			this.perlDebugger = new LocalSession(filename, cwd, args, options);
-			this.logOutput(this.perlDebugger.title());
-		} else {
-			// If port is configured then use the remote session.
-			this.logOutput(`Waiting for remote debugger to connect on port "${options.port}"`);
-			this.perlDebugger = new RemoteSession(options.port);
+			case "deprecatedDebugConsole": {
+				this.logOutput(`Launch mode console:deprecatedDebugConsole is deprecated and buggy`);
+				this.logOutput(`Launch "perl -d ${sourceFile}" in "${cwd}"`);
+				this.perlDebugger = new LocalSession(filename, cwd, args, options);
+				this.logOutput(this.perlDebugger.title());
+				break;
+			}
+
+			case "integratedTerminal":
+			case "externalTerminal": {
+
+				if (!this.session.dcSupportsRunInTerminal) {
+					// FIXME(bh): error handling.
+					break;
+				}
+
+				this.logOutput(`Launching program in terminal and waiting`);
+
+				// NOTE(bh): `localhost` is hardcoded here to ensure that for
+				// local debug sessions, the port is not exposed externally.
+				const bindHost = 'localhost';
+
+				this.perlDebugger = new RemoteSession(0, bindHost);
+
+				this.logOutput(this.perlDebugger.title());
+
+				// The RemoteSession will listen on a random available port,
+				// and since we need to connect to that port, we have to wait
+				// for it to become available.
+				await new Promise(
+					resolve => this.perlDebugger.on("listening", res => resolve(res))
+				);
+
+				await new Promise((resolve, reject) => {
+					this.session.runInTerminalRequest({
+						kind: (
+							options.console === "integratedTerminal"
+								? "integrated"
+								: "external"
+						),
+						cwd: cwd,
+						args: [options.exec, "-d", filename].concat(args),
+						env: {
+							...options.env,
+
+							// TODO(bh): maybe merge user-specified options together
+							// with the RemotePort setting we need?
+							PERLDB_OPTS:
+								`RemotePort=${bindHost}:${this.perlDebugger.port}`,
+						}
+					}, 5000, response => {
+						if (response.success) {
+							resolve(response);
+						} else {
+							reject(response);
+						}
+					});
+				});
+
+				break;
+			}
+
+			case "remote": {
+				this.logOutput(`Waiting for remote debugger to connect on port "${options.port}"`);
+				this.perlDebugger = new RemoteSession(options.port);
+
+				// FIXME(bh): this does not await the listening event since we
+				// already know the port number beforehand, and probably we do
+				// still wait (due to the streamCatcher perhaps?) for streams
+				// to become usable, it still seems weird though to not await.
+
+				break;
+			}
+
+			case "none": {
+
+				const bindHost = 'localhost';
+
+				this.perlDebugger = new RemoteSession(0, bindHost);
+
+				this.logOutput(this.perlDebugger.title());
+
+				await new Promise(
+					resolve => this.perlDebugger.on("listening", res => resolve(res))
+				);
+
+				// FIXME(bh): where do we keep a reference to this? This mode
+				// is intended primarily for the test suite.
+				const trackMe = new LocalSession(filename, cwd, args, {
+					...options,
+					env: {
+						...options.env,
+						PERLDB_OPTS:
+							`RemotePort=${bindHost}:${this.perlDebugger.port}`,
+					}
+				});
+
+				break;
+			}
+
+			default: {
+				// FIXME(bh): error handling?
+				break;
+			}
+
 		}
 
 		this.commandRunning = this.perlDebugger.title();
 
 		this.perlDebugger.on('error', (err) => {
-			if (this.debug) console.log('error:', err);
+			this.logDebug('error:', err);
 			this.logOutput( `Error`);
 			this.logOutput( err );
 			this.logOutput( `DUMP: ${this.perlDebugger.dump()}` );
@@ -413,7 +535,7 @@ export class perlDebuggerConnection {
 		return Promise.all([this.setFileContext(filename), this.request(`b ${ln}`)])
 			.then(result => {
 				const res = <RequestResponse>result.pop();
-				if (this.debug) console.log(res);
+				this.logDebug(res);
 				if (res.data.length) {
 					if (/not breakable\.$/.test(res.data[0])) {
 						throw new Error(res.data[0] + ' ' + filename + ':' + ln);
@@ -429,7 +551,7 @@ export class perlDebuggerConnection {
 	async getBreakPoints() {
 		const res = await this.request(`L b`);
 		const breakpoints = {};
-		if (this.debug) console.log(res);
+		this.logDebug(res);
 		let currentFile = 'unknown';
 		res.data.forEach(line => {
 			if (RX.breakPoint.condition.test(line)) {
@@ -444,7 +566,7 @@ export class perlDebuggerConnection {
 				}
 			} else if (RX.breakPoint.filename.test(line)) {
 				currentFile = line.replace(/:$/, '');
-				if (this.debug) console.log('GOT FILENAME:', currentFile);
+				this.logDebug('GOT FILENAME:', currentFile);
 				if (typeof breakpoints[currentFile] === 'undefined') {
 					breakpoints[currentFile] = [];
 				}
@@ -453,7 +575,7 @@ export class perlDebuggerConnection {
 			}
 		});
 
-		if (this.debug) console.log('BREAKPOINTS:', breakpoints);
+		this.logDebug('BREAKPOINTS:', breakpoints);
 		return breakpoints;
 	}
 
@@ -486,12 +608,12 @@ export class perlDebuggerConnection {
 	}
 
 	async getVariableReference(name: string): Promise<string> {
-		const res = await this.request(`print { $DB::OUT } \\${name}`);
+		const res = await this.request(`p \\${name}`);
 		return res.data[0];
 	}
 
 	async getExpressionValue(expression: string): Promise<string> {
-		const res = await this.request(`print { $DB::OUT } ${expression}`);
+		const res = await this.request(`p ${expression}`);
 		return res.data.pop();
 	}
 

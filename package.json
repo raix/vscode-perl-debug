@@ -10,7 +10,7 @@
   },
   "license": "MIT",
   "engines": {
-    "vscode": ">=1.9.0",
+    "vscode": ">=1.19.0",
     "node": ">=8.0.0"
   },
   "icon": "images/vscode-perl-debug.png",
@@ -61,7 +61,7 @@
     "ts-jest": "^24.0.0",
     "tslint": "5.8.0",
     "typescript": "2.7.1",
-    "vscode": "1.1.30",
+    "vscode": "1.1.19",
     "vscode-debugadapter-testsupport": "1.19.0"
   },
   "scripts": {
@@ -91,7 +91,7 @@
   },
   "main": "./out/extension",
   "activationEvents": [
-    "onCommand:extension.perl-debug.provideInitialConfigurations"
+    "onDebug"
   ],
   "contributes": {
     "breakpoints": [
@@ -111,8 +111,30 @@
         "configurationAttributes": {
           "launch": {
             "required": [
-              "root",
-              "program"
+              "root"
+            ],
+            "anyOf": [
+              {
+                "required": [
+                  "program"
+                ]
+              },
+              {
+                "properties": {
+                  "console": {
+                    "enum": [
+                      "remote"
+                    ]
+                  }
+                }
+              },
+              {
+                "not": {
+                  "required": [
+                    "port"
+                  ]
+                }
+              }
             ],
             "properties": {
               "exec": {
@@ -162,8 +184,19 @@
               },
               "port": {
                 "type": "number",
-                "description": "Port to listen for remote debuggers.",
-                "default": 5000
+                "description": "Port to listen for remote debuggers."
+              },
+              "console": {
+                "type": "string",
+                "enum": [
+                  "deprecatedDebugConsole",
+                  "integratedTerminal",
+                  "externalTerminal",
+                  "remote",
+                  "none"
+                ],
+                "description": "Where to launch the debug target",
+                "default": "deprecatedDebugConsole"
               }
             }
           }
@@ -173,6 +206,7 @@
             "type": "perl",
             "request": "launch",
             "name": "Perl-Debug local",
+            "console": "integratedTerminal",
             "program": "${workspaceFolder}/${relativeFile}",
             "exec": "perl",
             "execArgs": [],
@@ -186,6 +220,7 @@
             "type": "perl",
             "request": "launch",
             "name": "Perl-Debug remote",
+            "console": "remote",
             "program": "${workspaceFolder}/${relativeFile}",
             "root": "${workspaceRoot}/",
             "stopOnEntry": true,

@@ -22,6 +22,7 @@ const launchOptions = {
 		PATH: process.env.PATH || '',
 		PERL5LIB: process.env.PERL5LIB || '',
 	},
+	console: 'deprecatedDebugConsole'
 };
 
 describe('Perl debugger connection', () => {
@@ -29,7 +30,7 @@ describe('Perl debugger connection', () => {
 	let conn: perlDebuggerConnection;
 
 	beforeEach(() => {
-		conn = new perlDebuggerConnection();
+		conn = new perlDebuggerConnection(null);
 		return conn.initializeRequest();
 	});
 
@@ -95,10 +96,12 @@ describe('Perl debugger connection', () => {
 				args: ['foo=bar', 'test=ok'],
 				...launchOptions,
 			});
+
+			const argv = await conn.getExpressionValue('"@ARGV"');
 			await conn.continue();
 			// xxx: It would have been nice if we had a stable way of catching the application output
 			// using the actual application output for validation
-			assert.equal(conn.commandRunning, 'perl -d ' + FILE_PRINT_ARGUMENTS + ' foo=bar test=ok')
+			assert.equal(argv, 'foo=bar test=ok')
 		});
 	});
 

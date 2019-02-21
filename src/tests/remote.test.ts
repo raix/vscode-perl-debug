@@ -20,7 +20,7 @@ describe('Perl debugger connection', () => {
 	let conn: perlDebuggerConnection;
 
 	beforeEach(() => {
-		conn = new perlDebuggerConnection();
+		conn = new perlDebuggerConnection(null);
 		return conn.initializeRequest();
 	});
 
@@ -34,14 +34,18 @@ describe('Perl debugger connection', () => {
 		// TODO(bh): refactor remote debugger setup into helper function?
 
 		const port = 5000 + Math.round(Math.random()*100); // Not to conflict with VS Code jest ext
+
 		// Listen for remote debugger session
 		const server = conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], {
 			...launchOptions,
+			console: 'remote',
 			port, // Trigger server
 		});
 		// Start "remote" debug session
 		const local = new LocalSession(FILE_TEST_PL, DATA_ROOT, [], {
 			...launchOptions,
+			console: 'deprecatedDebugConsole',
+			args: ['foo=bar', 'test=ok'],
 			env: {
 				...launchOptions.env,
 				PERLDB_OPTS: `RemotePort=localhost:${port}`, // Trigger remote debugger
@@ -51,14 +55,14 @@ describe('Perl debugger connection', () => {
 		// Wait for result
 		const res = await server;
 
-		// Ask Perl for the PID of the Perl process
-		const expressionValue = await conn.getExpressionValue('$$');
+		// Ask Perl for the scripts command line arguments
+		const expressionValue = await conn.getExpressionValue('"@ARGV"');
 
 		// Cleanup
 		local.kill();
 		conn.perlDebugger.kill();
 
-		assert.equal(Number.parseInt(expressionValue), local.pid);
+		assert.equal(expressionValue, 'foo=bar test=ok');
 		assert.equal(res.finished, false);
 		assert.equal(res.exception, false);
 		assert.equal(res.ln, 7); // The first code line in test.pl is 7

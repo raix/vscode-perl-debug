@@ -8,6 +8,7 @@ export interface DebugSession {
 	on: Function, // support "close", "error"
 	title: Function,
 	dump: Function, // Dump debug information
+	port: Number | null;
 }
 
 export interface LaunchOptions {
@@ -15,4 +16,5 @@ export interface LaunchOptions {
 	args?: string[];
 	env?: {},
 	port?: number;
+	console?: string;
 }
