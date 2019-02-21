@@ -61,7 +61,7 @@
     "ts-jest": "^24.0.0",
     "tslint": "5.8.0",
     "typescript": "2.7.1",
-    "vscode": "1.1.10",
+    "vscode": "1.1.30",
     "vscode-debugadapter-testsupport": "1.19.0"
   },
   "scripts": {
