@@ -81,15 +81,31 @@ describe('Perl debugger connection', () => {
 		assert.equal(res.ln, 7); // The first code line in test.pl is 7
 	});
 
-	it.skip('Should be able to get loaded scripts and their source code from' + FILE_TEST_PL, async () => {
+	it('Should be able to get loaded scripts and their source code from' + FILE_TEST_PL, async () => {
 
 		const [ server, local ] = setupDebugger(
 			conn, FILE_TEST_PL, DATA_ROOT, [], launchOptions
 		);
 
-		// TODO(bh): Test for `loadedSourcesRequest` and `sourceRequest`.
-		// Those would need a `DebugClient` and/or a `DebugSession`. Not
-		// Clear how to get those here, or how to restructure the tests.
+		// Wait for result
+		const res = await server;
+
+		const loadedFiles = await conn.getLoadedFiles();
+		const modulePms = loadedFiles.filter(
+			x => x.endsWith('Module.pm')
+		);
+
+		assert.ok(
+			modulePms.length > 0,
+			'Must have loaded a `Module.pm` file'
+		);
+
+		const sourceCode = await conn.getSourceCode(modulePms[0]);
+
+		assert.ok(
+			sourceCode.indexOf('Hello module') > 0,
+			'Module.pm source code contains "Hello module"'
+		);
 
 	});
 

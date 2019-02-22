@@ -773,15 +773,11 @@ class PerlDebugSession extends LoggingDebugSession {
 
 	private async loadedSourcesRequestAsync(response: DebugProtocol.LoadedSourcesResponse, args: DebugProtocol.LoadedSourcesArguments): Promise<DebugProtocol.LoadedSourcesResponse> {
 
-		const loadedFiles = await this.perlDebugger.getExpressionValue(
-			`join "\t", grep { /^_</ } keys %main::`
-		);
+		const loadedFiles = await this.perlDebugger.getLoadedFiles();
 
-		const newFiles = loadedFiles
-			.split(/\t/)
-			.filter(x => !/^_<\(eval \d+\)/.test(x))
-			.map(x => x.replace(/^_</, ''))
-			.filter(x => !this._loadedSources.has(x));
+		const newFiles = loadedFiles.filter(
+			x => !this._loadedSources.has(x)
+		);
 
 		for (const file of newFiles) {
 
@@ -843,22 +839,9 @@ class PerlDebugSession extends LoggingDebugSession {
 			// retrieve by path
 		}
 
-		const escapedPath = args.source.path.replace(
-			/([\\'])/g,
-			'\\$1'
-		);
-
 		response.body = {
-			content: decodeURIComponent(
-				// Perl stores file source code in `@{main::_<example.pl}`
-				// arrays. This retrieves the code in %xx-escaped form to
-				// ensure we only get a single line of output. This could
-				// perhaps be done generically for all expressions.
-				await this.perlDebugger.getExpressionValue(
-					`sub { local $_ = join("", @{"main::_<@_"});\
-					s/([^a-zA-Z0-9\\x{80}-\\x{10FFFF}])/\
-					sprintf '%%%02x', ord "\$1"/ge; \$_ }->('${escapedPath}')`
-				)
+			content: await this.perlDebugger.getSourceCode(
+				args.source.path
 			)
 		};
 
