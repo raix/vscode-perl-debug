@@ -4,7 +4,8 @@ import {
 	Logger, logger,
 	DebugSession, LoggingDebugSession,
 	InitializedEvent, TerminatedEvent, StoppedEvent, BreakpointEvent, OutputEvent, Event,
-	Thread, StackFrame, Scope, Source, Handles, Breakpoint, Variable
+	Thread, StackFrame, Scope, Source, Handles, Breakpoint, Variable,
+	LoadedSourceEvent
 } from 'vscode-debugadapter';
 import {DebugProtocol} from 'vscode-debugprotocol';
 import {readFileSync} from 'fs';
@@ -56,6 +57,8 @@ class PerlDebugSession extends LoggingDebugSession {
 
 	private _breakPoints = new Map<string, DebugProtocol.Breakpoint[]>();
 	private _functionBreakPoints: string[] = [];
+
+	private _loadedSources = new Map<string, Source>();
 
 	private _variableHandles = new Handles<string>();
 
@@ -117,6 +120,8 @@ class PerlDebugSession extends LoggingDebugSession {
 				response.body.supportsStepBack = false;
 
 				response.body.supportsFunctionBreakpoints = false;
+
+				response.body.supportsLoadedSourcesRequest = true;
 
 				this.sendResponse(response);
 			});
@@ -715,6 +720,15 @@ class PerlDebugSession extends LoggingDebugSession {
 	 * Stacktrace
 	 */
 	private async stackTraceRequestAsync(response: DebugProtocol.StackTraceResponse, args: DebugProtocol.StackTraceArguments): Promise<DebugProtocol.StackTraceResponse> {
+
+		// FIXME(bh): There is probably a better way to re-use the code
+		// in that function that does not require setting up a malformed
+		// object here, but this seems good enough for the moment.
+		await this.loadedSourcesRequestAsync(
+			{} as DebugProtocol.LoadedSourcesResponse,
+			{}
+		);
+
 		const stacktrace = await this.perlDebugger.getStackTrace();
 		const frames = new Array<StackFrame>();
 
@@ -756,6 +770,119 @@ class PerlDebugSession extends LoggingDebugSession {
 				this.sendResponse(response);
 			});
 	}
+
+	private async loadedSourcesRequestAsync(response: DebugProtocol.LoadedSourcesResponse, args: DebugProtocol.LoadedSourcesArguments): Promise<DebugProtocol.LoadedSourcesResponse> {
+
+		const loadedFiles = await this.perlDebugger.getExpressionValue(
+			`join "\t", grep { /^_</ } keys %main::`
+		);
+
+		const newFiles = loadedFiles
+			.split(/\t/)
+			.filter(x => !/^_<\(eval \d+\)/.test(x))
+			.map(x => x.replace(/^_</, ''))
+			.filter(x => !this._loadedSources.has(x));
+
+		for (const file of newFiles) {
+
+			const newSource = new Source(
+				file,
+				file,
+				// no sourceReference when debugging locally, so vscode will
+				// open the local file rather than retrieving a read-only
+				// version of the code through the debugger (that lacks code
+				// past `__END__` markers, among possibly other limitations).
+				this.perlDebugger.isRemote
+					? this._loadedSources.size
+					: 0
+			);
+
+			this.sendEvent(new LoadedSourceEvent("new", newSource));
+
+			this._loadedSources.set(file, newSource);
+
+		}
+
+		response.body = {
+			sources: [...this._loadedSources.values()]
+		};
+
+		return response;
+
+	}
+
+	protected loadedSourcesRequest(response: DebugProtocol.LoadedSourcesResponse, args: DebugProtocol.LoadedSourcesArguments) {
+
+		this.loadedSourcesRequestAsync(response, args)
+			.then(res => this.sendResponse(res))
+			.catch(err => {
+
+				const [ error = err ] = err.errors || [];
+				this.sendEvent(new OutputEvent(`--->Loaded sources request error...${error.message}\n`));
+				response.body = {
+					sources: [
+					]
+				};
+				this.sendResponse(response);
+			});
+
+	}
+
+	private async sourceRequestAsync(response: DebugProtocol.SourceResponse, args: DebugProtocol.SourceArguments): Promise<DebugProtocol.SourceResponse> {
+
+		// NOTE(bh): When sources reported by `loadedSources` have some
+		// non-zero `sourceReference` specified, Visual Studio Code will
+		// ask us for the source code, otherwise it interprets the `path`
+		// as a local file. Our `loadedSources` takes the paths from the
+		// Perl debugger, and `sourceReference` is just a counter value.
+		// Accordingly there is no point for us to distinguish the cases.
+
+		if (args.source && args.source.sourceReference) {
+			// retrieve by source reference
+		} else {
+			// retrieve by path
+		}
+
+		const escapedPath = args.source.path.replace(
+			/([\\'])/g,
+			'\\$1'
+		);
+
+		response.body = {
+			content: decodeURIComponent(
+				// Perl stores file source code in `@{main::_<example.pl}`
+				// arrays. This retrieves the code in %xx-escaped form to
+				// ensure we only get a single line of output. This could
+				// perhaps be done generically for all expressions.
+				await this.perlDebugger.getExpressionValue(
+					`sub { local $_ = join("", @{"main::_<@_"});\
+					s/([^a-zA-Z0-9\\x{80}-\\x{10FFFF}])/\
+					sprintf '%%%02x', ord "\$1"/ge; \$_ }->('${escapedPath}')`
+				)
+			)
+		};
+
+		return response;
+	}
+
+	protected sourceRequest(response: DebugProtocol.SourceResponse, args: DebugProtocol.SourceArguments) {
+
+		this.sourceRequestAsync(response, args)
+			.then(res => this.sendResponse(res))
+			.catch(err => {
+
+				const [ error = err ] = err.errors || [];
+				this.sendEvent(new OutputEvent(`--->Source request error...${error.message}\n`));
+				response.body = {
+					content: `# error`,
+					mimeType: `text/vnd.vscode-perl-debug.error`
+				};
+				this.sendResponse(response);
+
+			});
+
+	}
+
 }
 
 DebugSession.run(PerlDebugSession);

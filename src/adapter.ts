@@ -115,6 +115,7 @@ export class perlDebuggerConnection {
 	public perlVersion: string;
 	public padwalkerVersion: string;
 	public commandRunning: string = '';
+	public isRemote: boolean = false;
 
 	private filename?: string;
 	private rootPath?: string;
@@ -302,10 +303,12 @@ export class perlDebuggerConnection {
 			// If no port is configured then run this locally in a fork
 			this.perlDebugger = new LocalSession(filename, cwd, args, options);
 			this.logOutput(this.perlDebugger.title());
+			this.isRemote = false;
 		} else {
 			// If port is configured then use the remote session.
 			this.logOutput(`Waiting for remote debugger to connect on port "${options.port}"`);
 			this.perlDebugger = new RemoteSession(options.port);
+			this.isRemote = true;
 		}
 
 		this.commandRunning = this.perlDebugger.title();
