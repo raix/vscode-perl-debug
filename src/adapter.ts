@@ -1,5 +1,6 @@
 import {join, dirname, sep} from 'path';
 import * as fs from 'fs';
+import * as path from 'path';
 import {spawn} from 'child_process';
 import {StreamCatcher} from './streamCatcher';
 import * as RX from './regExp';
@@ -90,22 +91,6 @@ function absoluteFilename(root: string, filename: string): string {
 	// xxx: We might want to resolve module names later on
 	// using this.resolveFilename, for now we just return the joined path
 	return join(root, filename);
-}
-
-function relativeFilename(root: string, filename: string): string {
-	// If already relative to root
-	if (fs.existsSync(join(root, filename))) {
-		return filename;
-	}
-	// Try to create relative filename
-	// ensure trailing separator in root path eg. /foo/
-	const relName = filename.replace(root, '').replace(/^[\/|\\]/, '');
-	if (fs.existsSync(join(root, relName))) {
-		return relName;
-	}
-
-	// We might need to add more cases
-	return filename;
 }
 
 export class perlDebuggerConnection {
@@ -384,7 +369,7 @@ export class perlDebuggerConnection {
 
 	async relativePath(filename: string) {
 		await this.streamCatcher.isReady();
-		return filename && filename.replace(`${this.rootPath}${sep}`, '');
+		return path.relative(this.rootPath, filename || '');
 	}
 
 	async setFileContext(filename: string = this.filename) {
