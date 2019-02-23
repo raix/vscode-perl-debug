@@ -1,5 +1,6 @@
 import {join, dirname, sep} from 'path';
 import * as fs from 'fs';
+import * as path from 'path';
 import {spawn} from 'child_process';
 import {StreamCatcher} from './streamCatcher';
 import * as RX from './regExp';
@@ -97,22 +98,6 @@ function absoluteFilename(root: string, filename: string): string {
 	return join(root, filename);
 }
 
-function relativeFilename(root: string, filename: string): string {
-	// If already relative to root
-	if (fs.existsSync(join(root, filename))) {
-		return filename;
-	}
-	// Try to create relative filename
-	// ensure trailing separator in root path eg. /foo/
-	const relName = filename.replace(root, '').replace(/^[\/|\\]/, '');
-	if (fs.existsSync(join(root, relName))) {
-		return relName;
-	}
-
-	// We might need to add more cases
-	return filename;
-}
-
 export class perlDebuggerConnection {
 	public debug: boolean = false;
 	public perlDebugger: DebugSession;
@@ -120,6 +105,7 @@ export class perlDebuggerConnection {
 	public perlVersion: string;
 	public padwalkerVersion: string;
 	public commandRunning: string = '';
+	public isRemote: boolean = false;
 
 	private session: PerlDebugSession | null;
 
@@ -328,6 +314,7 @@ export class perlDebuggerConnection {
 				this.logOutput(`Launch "perl -d ${sourceFile}" in "${cwd}"`);
 				this.perlDebugger = new LocalSession(filename, cwd, args, options);
 				this.logOutput(this.perlDebugger.title());
+				this.isRemote = false;
 				break;
 			}
 
@@ -338,7 +325,8 @@ export class perlDebuggerConnection {
 					// FIXME(bh): error handling.
 					break;
 				}
-
+				
+				this.isRemote = false;
 				this.logOutput(`Launching program in terminal and waiting`);
 
 				// NOTE(bh): `localhost` is hardcoded here to ensure that for
@@ -388,6 +376,7 @@ export class perlDebuggerConnection {
 			case "remote": {
 				this.logOutput(`Waiting for remote debugger to connect on port "${options.port}"`);
 				this.perlDebugger = new RemoteSession(options.port);
+				this.isRemote = true;
 
 				// FIXME(bh): this does not await the listening event since we
 				// already know the port number beforehand, and probably we do
@@ -401,6 +390,7 @@ export class perlDebuggerConnection {
 
 				const bindHost = 'localhost';
 
+				this.isRemote = false;
 				this.perlDebugger = new RemoteSession(0, bindHost);
 
 				this.logOutput(this.perlDebugger.title());
@@ -506,7 +496,7 @@ export class perlDebuggerConnection {
 
 	async relativePath(filename: string) {
 		await this.streamCatcher.isReady();
-		return filename && filename.replace(`${this.rootPath}${sep}`, '');
+		return path.relative(this.rootPath, filename || '');
 	}
 
 	async setFileContext(filename: string = this.filename) {
@@ -716,6 +706,43 @@ export class perlDebuggerConnection {
 		});
 
 		return result;
+	}
+
+	async getLoadedFiles(): Promise<string[]> {
+
+		const loadedFiles = await this.getExpressionValue(
+			'join "\t", grep { /^_</ } keys %main::'
+		);
+
+		return loadedFiles
+			.split(/\t/)
+			.filter(x => !/^_<\(eval \d+\)/.test(x))
+			.map(x => x.replace(/^_</, ''));
+
+	}
+
+	async getSourceCode(perlPath: string): Promise<string> {
+
+		// NOTE: `perlPath` must be a path known to Perl, there is
+		// no path translation at this point.
+
+		const escapedPath = perlPath.replace(
+			/([\\'])/g,
+			'\\$1'
+		);
+
+		return decodeURIComponent(
+			// Perl stores file source code in `@{main::_<example.pl}`
+			// arrays. This retrieves the code in %xx-escaped form to
+			// ensure we only get a single line of output. This could
+			// perhaps be done generically for all expressions.
+			await this.getExpressionValue(
+				`sub { local $_ = join("", @{"main::_<@_"});\
+				s/([^a-zA-Z0-9\\x{80}-\\x{10FFFF}])/\
+				sprintf '%%%02x', ord "\$1"/ge; \$_ }->('${escapedPath}')`
+			)
+		);
+
 	}
 
 	async watchExpression(expression) {
