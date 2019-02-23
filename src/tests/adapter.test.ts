@@ -26,6 +26,7 @@ describe('Perl debug Adapter', () => {
 	const FILE_BROKEN_CODE = 'broken_code.pl';
 	const FILE_PRINT_ARGUMENTS = 'print_arguments.pl';
 	const FILE_FAST_TEST_PL = 'fast_test.pl';
+	const FILE_LONG_RUNNING_PL = 'long_running.pl';
 
 	const PERL_DEBUG_LOG = 'perl_debugger.log';
 
@@ -147,6 +148,53 @@ describe('Perl debug Adapter', () => {
 			}));
 
 			await dc.assertStoppedLocation('entry', { line: ENTRY_LINE } );
+		});
+	});
+
+	describe('pause', () => {
+
+		it('should be able to pause programs', async () => {
+			const PROGRAM = Path.join(DATA_ROOT, FILE_LONG_RUNNING_PL);
+
+			// NOTE(bh): This test is probably expected to fail when test
+			// and adapter run in the same process?
+
+			await dc.launch(Configuration({
+				program: PROGRAM,
+				stopOnEntry: true
+			}));
+
+			dc.continueRequest({
+				threadId: undefined
+			});
+
+			// NOTE(bh): Perl's built-in `sleep` function only supports
+			// integer resolution sleeps, so this test is a bit slow.
+
+			await new Promise(resolve => setTimeout(resolve, 2200));
+
+			await dc.pauseRequest({
+				threadId: undefined,
+			});
+
+			// The evaluate request can only succeed within a few seconds
+			// if the debuggee is actually stopped, otherwise the debugger
+			// would not take our request in time because it's on the same
+			// thread as the debuggee. If things do not go according to
+			// plan and the debuggee keeps running, it will be killed by
+			// the test runner due to a timeout since the script runs for
+			// around 30 seconds, longer than the timeout.
+
+			const result = await dc.evaluateRequest({
+				context: 'repl',
+				expression: 'p $_'
+			});
+
+			assert.ok(
+				parseInt(result.body.result) > 3,
+				'must have gone at least twice through the loop'
+			);
+
 		});
 	});
 

@@ -110,6 +110,7 @@ export class perlDebuggerConnection extends EventEmitter {
 	public padwalkerVersion: string;
 	public commandRunning: string = '';
 	public isRemote: boolean = false;
+	public debuggerPid?: number;
 
 	private filename?: string;
 	private rootPath?: string;
@@ -507,6 +508,15 @@ export class perlDebuggerConnection extends EventEmitter {
 
 		// Initial data from debugger
 		this.logData('', data.slice(0, data.length-2));
+
+		// While `runInTerminal` is supposed to give us the pid of the
+		// spawned `perl -d` process, that does not work very well as of
+		// 2019-02. Instead we ask Perl for the host process id. Note
+		// that the value is meaningful only if `this.isRemote` is false.
+		// For local processes the pid is needed to send `SIGINT` to the
+		// debugger, which is supposed to break into the debugger and
+		// used to implement the `pauseRequest`.
+		this.debuggerPid = parseInt(await this.getExpressionValue('$$'));
 
 		try {
 			// Get the version just after
