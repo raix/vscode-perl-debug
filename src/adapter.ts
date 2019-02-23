@@ -100,6 +100,7 @@ export class perlDebuggerConnection {
 	public perlVersion: string;
 	public padwalkerVersion: string;
 	public commandRunning: string = '';
+	public isRemote: boolean = false;
 
 	private filename?: string;
 	private rootPath?: string;
@@ -287,10 +288,12 @@ export class perlDebuggerConnection {
 			// If no port is configured then run this locally in a fork
 			this.perlDebugger = new LocalSession(filename, cwd, args, options);
 			this.logOutput(this.perlDebugger.title());
+			this.isRemote = false;
 		} else {
 			// If port is configured then use the remote session.
 			this.logOutput(`Waiting for remote debugger to connect on port "${options.port}"`);
 			this.perlDebugger = new RemoteSession(options.port);
+			this.isRemote = true;
 		}
 
 		this.commandRunning = this.perlDebugger.title();
@@ -579,6 +582,43 @@ export class perlDebuggerConnection {
 		});
 
 		return result;
+	}
+
+	async getLoadedFiles(): Promise<string[]> {
+
+		const loadedFiles = await this.getExpressionValue(
+			'join "\t", grep { /^_</ } keys %main::'
+		);
+
+		return loadedFiles
+			.split(/\t/)
+			.filter(x => !/^_<\(eval \d+\)/.test(x))
+			.map(x => x.replace(/^_</, ''));
+
+	}
+
+	async getSourceCode(perlPath: string): Promise<string> {
+
+		// NOTE: `perlPath` must be a path known to Perl, there is
+		// no path translation at this point.
+
+		const escapedPath = perlPath.replace(
+			/([\\'])/g,
+			'\\$1'
+		);
+
+		return decodeURIComponent(
+			// Perl stores file source code in `@{main::_<example.pl}`
+			// arrays. This retrieves the code in %xx-escaped form to
+			// ensure we only get a single line of output. This could
+			// perhaps be done generically for all expressions.
+			await this.getExpressionValue(
+				`sub { local $_ = join("", @{"main::_<@_"});\
+				s/([^a-zA-Z0-9\\x{80}-\\x{10FFFF}])/\
+				sprintf '%%%02x', ord "\$1"/ge; \$_ }->('${escapedPath}')`
+			)
+		);
+
 	}
 
 	async watchExpression(expression) {

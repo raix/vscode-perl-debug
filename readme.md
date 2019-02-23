@@ -9,6 +9,7 @@ A debugger for perl in vs code.
 ![Perl Debug](images/vscode-perl-debugger.gif)
 
 ### Features
+
 * Breakpoints *(continue, step over, step in, step out)*
 * Stacktrace
 * Variable inspection *(support for objects, arrays, strings, numbers and boolean)*
@@ -16,6 +17,7 @@ A debugger for perl in vs code.
 * Setting new values of variables *(works inside of arrays and objects too)*
 * Debug console for writing expressions *(write perl expressions in the debug console)*
 * Variable values on hover in code
+* Loaded modules view *(including source code retrieval from remote)*
 
 ### Settings
 

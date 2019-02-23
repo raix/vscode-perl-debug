@@ -10,7 +10,7 @@
   },
   "license": "MIT",
   "engines": {
-    "vscode": ">=1.9.0",
+    "vscode": ">=1.19.0",
     "node": ">=8.0.0"
   },
   "icon": "images/vscode-perl-debug.png",
@@ -44,8 +44,8 @@
   },
   "dependencies": {
     "await-notify": "1.0.1",
-    "vscode-debugadapter": "1.19.0",
-    "vscode-debugprotocol": "1.19.0"
+    "vscode-debugadapter": "1.24.0",
+    "vscode-debugprotocol": "1.24.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^7.5.2",
@@ -62,7 +62,7 @@
     "tslint": "5.8.0",
     "typescript": "2.7.1",
     "vscode": "1.1.30",
-    "vscode-debugadapter-testsupport": "1.19.0"
+    "vscode-debugadapter-testsupport": "1.24.0"
   },
   "scripts": {
     "prepublish": "tsc",
