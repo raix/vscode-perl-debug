@@ -602,7 +602,7 @@ export class perlDebuggerConnection {
 	async getLoadedFiles(): Promise<string[]> {
 
 		const loadedFiles = await this.getExpressionValue(
-			`join "\t", grep { /^_</ } keys %main::`
+			'join "\t", grep { /^_</ } keys %main::'
 		);
 
 		return loadedFiles
