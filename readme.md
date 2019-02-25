@@ -102,7 +102,6 @@ If you want to help test / debug read [DEBUGGING.md](DEBUGGING.md)
 
 * Watching variables doesn't create actual expression watchers yet - need more api for actually maintaining the list of expressions to watch. I might be able to do a workaround for now.
 * Variable values on hover doesn't work all the time due to the lack of info, eg. `$obj->{ownObj}->{ownFoo}` hovering over `$obj` will work fine - but the children are not parsed correctly - to solve this we might need to parse the line of code.
-* Function breakpoints not working / added - need to figure out if possible
 
 ### Credits
 

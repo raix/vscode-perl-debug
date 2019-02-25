@@ -150,6 +150,69 @@ describe('Perl debug Adapter', () => {
 		});
 	});
 
+	describe.skip('setFunctionBreakpoints', () => {
+
+		it('should stop on a function', async () => {
+
+			const PROGRAM = FILE_FAST_TEST_PL;
+
+			await dc.launch(Configuration({
+				program: PROGRAM,
+				stopOnEntry: true
+			}));
+
+			await dc.waitForEvent('stopped');
+
+			await dc.setFunctionBreakpointsRequest({
+				breakpoints: [{
+					name: 'Module::test'
+				}]
+			});
+
+			dc.waitForEvent('stopped').then(async (x) => {
+
+				const st = await dc.stackTraceRequest({
+					threadId: undefined
+				});
+
+				assert.ok(
+					st.body.stackFrames.filter(x => x.line === 4).length > 0
+				);
+
+				assert.ok(
+					st.body.stackFrames.filter(
+						x => x.source.path.endsWith('Module.pm')
+					).length > 0
+				);
+
+				// Clear breakpoints
+				await dc.setFunctionBreakpointsRequest({
+					breakpoints: []
+				});
+
+				// Should now run to completion
+				await Promise.all([
+					dc.continueRequest({
+						threadId: undefined
+					}),
+					dc.waitForEvent('terminated')
+				]);
+
+			}).catch(x => {
+
+				assert.fail('did not break on function');
+
+			});
+
+			await dc.continueRequest({
+				threadId: undefined
+			});
+
+		});
+
+	});
+
+
 	// xxx: Need to figure out this test
 	// hint: It might be a missing "stop" event - is the application run?
 	describe.skip('setBreakpoints', () => {
