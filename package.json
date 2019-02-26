@@ -45,7 +45,7 @@
   "dependencies": {
     "await-notify": "1.0.1",
     "vscode-debugadapter": "1.24.0",
-    "vscode-debugprotocol": "1.24.0"
+    "vscode-debugprotocol": "1.34.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^7.5.2",
