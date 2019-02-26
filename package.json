@@ -62,7 +62,7 @@
     "tslint": "5.8.0",
     "typescript": "2.7.1",
     "vscode": "1.1.30",
-    "vscode-debugadapter-testsupport": "1.24.0"
+    "vscode-debugadapter-testsupport": "1.34.0"
   },
   "scripts": {
     "prepublish": "tsc",
