@@ -325,7 +325,7 @@ export class perlDebuggerConnection {
 					// FIXME(bh): error handling.
 					break;
 				}
-				
+
 				this.isRemote = false;
 				this.logOutput(`Launching program in terminal and waiting`);
 
@@ -352,7 +352,7 @@ export class perlDebuggerConnection {
 								: "external"
 						),
 						cwd: cwd,
-						args: [options.exec, "-d", filename].concat(args),
+						args: [options.exec, "-d", filename].concat(options.args),
 						env: {
 							...options.env,
 
