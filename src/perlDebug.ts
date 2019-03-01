@@ -71,9 +71,6 @@ export class PerlDebugSession extends LoggingDebugSession {
 	public constructor() {
 		super('perl_debugger.log');
 
-		// The perlDebuggerConnection needs access to the session to make
-		// reverse requests like `runInTerminal` and to send custom events
-		// to the extension (e.g., to write to some output channel.)
 		this.perlDebugger = new perlDebuggerConnection();
 
 		this.setDebuggerLinesStartAt1(false);
