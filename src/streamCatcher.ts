@@ -27,11 +27,17 @@ export class StreamCatcher {
 
 	public input: Writable;
 
+	logDebug(...args: any[]) {
+		if (this.debug) {
+			console.log(...args);
+		}
+	}
+
 	constructor() {
 			// Listen for a ready signal
 			const result = this.request(null)
 				.then((res) => {
-					if (this.debug) console.log('ready', res);
+					this.logDebug('ready', res);
 					this.readyResponse = res;
 					this.ready = true;
 					this.readyListeners.forEach(f => f(res));
@@ -45,7 +51,7 @@ export class StreamCatcher {
 		let lastBuffer = '';
 		let timeout: NodeJS.Timer | null = null;
 		output.on('data', (buffer) => {
-			if (this.debug) console.log('RAW:', buffer.toString());
+			this.logDebug('RAW:', buffer.toString());
 			const data = lastBuffer + buffer.toString();
 			const lines = data.split(/\r\n|\r|\n/);
 			const firstLine = lines[0];
@@ -56,14 +62,18 @@ export class StreamCatcher {
 			// the windows perl debugger doesn't end the current restart request so we have to
 			// simulate a proper request end.
 			if ((/^win/.test(process.platform) && RX.restartWarning.test(firstLine)) || timeout) {
-				if (this.debug && RX.restartWarning.test(firstLine)) console.log('RAW> Waiting to fake end of restart request');
+
+				if (RX.restartWarning.test(firstLine)) {
+					this.logDebug('RAW> Waiting to fake end of restart request');
+				}
+
 				if (timeout) {
 					clearTimeout(timeout);
 				}
 				timeout = setTimeout(() => {
 					timeout = null;
 					if (this.requestRunning) {
-						if (this.debug) console.log('RAW> Fake end of restart request');
+						this.logDebug('RAW> Fake end of restart request');
 						// xxx: We might want to simulate all the restart output
 						this.readline('   DB<0> ');
 					}
@@ -81,7 +91,7 @@ export class StreamCatcher {
 			// xxx: Windows perl debugger just exits on syntax error without "DB<n>"
 			// If theres stuff left in the buffer we push it and end the request.
 			if (this.requestRunning) {
-				if (this.debug) console.log('RAW> Fake end of request');
+				this.logDebug('RAW> Fake end of request');
 				this.readline(lastBuffer);
 				this.readline('Debugged program terminated.  Use q to quit or R to restart,');
 				this.readline('use o inhibit_exit to avoid stopping after program termination,');
@@ -92,12 +102,12 @@ export class StreamCatcher {
 	}
 
 	readline(line) {
-		if (this.debug) console.log('line:', line);
-		// if (this.debug) console.log('data:', [...line]);
+		this.logDebug('line:', line);
+		// this.logDebug('data:', [...line]);
 		this.buffer.push(line);
 		// Test for command end
 		if (RX.lastCommandLine.test(line)) {
-			if (this.debug) console.log('END:', line);
+			this.logDebug('END:', line);
 			const data = this.buffer;
 			this.buffer = [];
 			// xxx: We might want to verify the DB nr and the cmd number
@@ -134,7 +144,7 @@ export class StreamCatcher {
 	}
 
 	request(command: string | null): Promise<string[]> {
-		if (this.debug) console.log(command ? `CMD: "${command}"` : 'REQ-INIT');
+		this.logDebug(command ? `CMD: "${command}"` : 'REQ-INIT');
 		return new Promise((resolve, reject) => {
 			// Add our request to the queue
 			this.requestQueue.push({

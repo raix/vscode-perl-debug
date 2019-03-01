@@ -10,7 +10,7 @@ export class LocalSession implements DebugSession {
 	public kill: Function;
 	public title: Function;
 	public dump: Function;
-	public pid: Number;
+	public port: Number | null;
 
 	constructor(filename: string, cwd: string, args: string[] = [], options: LaunchOptions = {}) {
 		const perlCommand = options.exec || 'perl';
@@ -33,7 +33,6 @@ export class LocalSession implements DebugSession {
 		this.stdin = session.stdin;
 		this.stdout = session.stdout;
 		this.stderr = session.stderr;
-		this.pid = session.pid;
 		this.on = (type, callback) => session.on(type, callback);
 		this.kill = () => session.kill();
 		this.title = () => `${perlCommand} ${commandArgs.join(' ')}`;

@@ -39,9 +39,11 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
 	env?: {};
 	/** port for debugger to listen for remote debuggers */
 	port?,
+	/** Where to launch the debug target */
+	console?: string,
 }
 
-class PerlDebugSession extends LoggingDebugSession {
+export class PerlDebugSession extends LoggingDebugSession {
 	private static THREAD_ID = 1;
 
 	private _breakpointId = 1000;
@@ -62,10 +64,14 @@ class PerlDebugSession extends LoggingDebugSession {
 
 	private _variableHandles = new Handles<string>();
 
-	private perlDebugger = new perlDebuggerConnection();
+	public dcSupportsRunInTerminal: boolean = false;
+
+	private perlDebugger;
 
 	public constructor() {
 		super('perl_debugger.log');
+
+		this.perlDebugger = new perlDebuggerConnection();
 
 		this.setDebuggerLinesStartAt1(false);
 		this.setDebuggerColumnsStartAt1(false);
@@ -84,6 +90,9 @@ class PerlDebugSession extends LoggingDebugSession {
 	}*/
 
 	protected initializeRequest(response: DebugProtocol.InitializeResponse, args: DebugProtocol.InitializeRequestArguments): void {
+
+		this.dcSupportsRunInTerminal = !!args.supportsRunInTerminalRequest;
+
 		// Rig output
 		this.perlDebugger.onOutput = (text) => {
 			this.sendEvent(new OutputEvent(`${text}\n`));
@@ -148,31 +157,39 @@ class PerlDebugSession extends LoggingDebugSession {
 		logger.setup(args.trace ? Logger.LogLevel.Verbose : Logger.LogLevel.Stop, false);
 
 		await this._configurationDone.wait(1000);
-		this.perlDebugger.launchRequest(args.program, args.root, execArgs, {
-			exec: args.exec,
-			args: programArguments,
-			env: {
-				PATH: process.env.PATH || '',
-				// PERL5OPT: process.env.PERL5OPT || '',
-				PERL5LIB: process.env.PERL5LIB || '',
-				...args.env
-			},
-			port: args.port || undefined,
-		})
-			.then((res) => {
-				if (args.stopOnEntry) {
-					if (res.ln) {
-						this._currentLine = res.ln - 1;
-					}
-					this.sendResponse(response);
 
-					// we stop on the first line
-					this.sendEvent(new StoppedEvent("entry", PerlDebugSession.THREAD_ID));
-				} else {
-					// we just start to run until we hit a breakpoint or an exception
-					this.continueRequest(<DebugProtocol.ContinueResponse>response, { threadId: PerlDebugSession.THREAD_ID });
-				}
-			});
+		const launchResponse = await this.perlDebugger.launchRequest(
+			args.program,
+			args.root,
+			execArgs,
+			{
+				exec: args.exec,
+				args: programArguments,
+				env: {
+					PATH: process.env.PATH || '',
+					// PERL5OPT: process.env.PERL5OPT || '',
+					PERL5LIB: process.env.PERL5LIB || '',
+					...args.env
+				},
+				port: args.port || undefined,
+				console: args.console
+			},
+			// Needs a reference to the session for `runInTerminal`
+			this
+		);
+
+		if (args.stopOnEntry) {
+			if (launchResponse.ln) {
+				this._currentLine = launchResponse.ln - 1;
+			}
+			this.sendResponse(response);
+
+			// we stop on the first line
+			this.sendEvent(new StoppedEvent("entry", PerlDebugSession.THREAD_ID));
+		} else {
+			// we just start to run until we hit a breakpoint or an exception
+			this.continueRequest(<DebugProtocol.ContinueResponse>response, { threadId: PerlDebugSession.THREAD_ID });
+		}
 
 	}
 
@@ -869,3 +886,4 @@ class PerlDebugSession extends LoggingDebugSession {
 }
 
 DebugSession.run(PerlDebugSession);
+

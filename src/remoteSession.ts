@@ -13,9 +13,11 @@ export class RemoteSession implements DebugSession {
 	public kill: Function;
 	public title: Function;
 	public dump: Function;
+	public port: Number | null;
+
 	private event = new EventEmitter();
 
-	constructor(port: number) {
+	constructor(port: number, bindAddress: string = "0.0.0.0") {
 		// Keep track of the chat clients
 		let client;
 
@@ -63,7 +65,14 @@ export class RemoteSession implements DebugSession {
 			socket.on('end', data => {
 				this.stdout.push(`Connection closed by "${name}"`);
 				this.event.emit('close', data);
-				this.kill();
+
+				// NOTE(bh): This used to call `this.kill()`, but in remote
+				// debugging, when using the `R`estart command, the debugger
+				// will close the connection and reconnect. To support that,
+				// we simply note that no client is connected anymore, which
+				// allows the code above to accept new connections.
+				client = null;
+
 			});
 
 			socket.on('error', data => {
@@ -71,7 +80,12 @@ export class RemoteSession implements DebugSession {
 			});
 		});
 
-		server.listen(port, '0.0.0.0'); // Listen to port make it remotely available
+		// Listen to port make it remotely available
+		server.listen(port, bindAddress, () => {
+			this.port = server.address().port;
+			this.event.emit('listening', () => {});
+		});
+
 		server.on('error', data => {
 			this.event.emit('error', data);
 			this.kill();

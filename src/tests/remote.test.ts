@@ -10,6 +10,7 @@ const DATA_ROOT = Path.join(PROJECT_ROOT, 'src/tests/data/');
 const FILE_TEST_PL = 'slow_test.pl';
 
 const launchOptions = {
+	console: 'remote',
 	env: {
 		PATH: process.env.PATH || '',
 		PERL5LIB: process.env.PERL5LIB || '',
@@ -26,13 +27,21 @@ function setupDebugger(
 
 	// Not to conflict with VS Code jest ext
 	const port = 5000 + Math.round(Math.random()*100);
+
 	// Listen for remote debugger session
-	const server = conn.launchRequest(FILE_TEST_PL, DATA_ROOT, [], {
-		...launchOptions,
-		port, // Trigger server
-	});
+	const server = conn.launchRequest(
+		FILE_TEST_PL,
+		DATA_ROOT,
+		args,
+		{
+			...launchOptions,
+			port: port, // Trigger server
+		},
+		null
+	);
+
 	// Start "remote" debug session
-	const local = new LocalSession(FILE_TEST_PL, DATA_ROOT, [], {
+	const local = new LocalSession(FILE_TEST_PL, DATA_ROOT, args, {
 		...launchOptions,
 		env: {
 			...launchOptions.env,
@@ -62,20 +71,23 @@ describe('Perl debugger connection', () => {
 	it('Should be able to get remote expression values from ' + FILE_TEST_PL, async () => {
 
 		const [ server, local ] = setupDebugger(
-			conn, FILE_TEST_PL, DATA_ROOT, [], launchOptions
+			conn, FILE_TEST_PL, DATA_ROOT, [], {
+				...launchOptions,
+				args: ['foo=bar', 'test=ok'],
+			}
 		);
 
 		// Wait for result
 		const res = await server;
 
-		// Ask Perl for the PID of the Perl process
-		const expressionValue = await conn.getExpressionValue('$$');
+		// Ask Perl for the scripts command line arguments
+		const expressionValue = await conn.getExpressionValue('"@ARGV"');
 
 		// Cleanup
 		local.kill();
 		conn.perlDebugger.kill();
 
-		assert.equal(Number.parseInt(expressionValue), local.pid);
+		assert.equal(expressionValue, 'foo=bar test=ok');
 		assert.equal(res.finished, false);
 		assert.equal(res.exception, false);
 		assert.equal(res.ln, 7); // The first code line in test.pl is 7

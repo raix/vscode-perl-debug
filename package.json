@@ -91,7 +91,7 @@
   },
   "main": "./out/extension",
   "activationEvents": [
-    "onCommand:extension.perl-debug.provideInitialConfigurations"
+    "onDebug"
   ],
   "contributes": {
     "breakpoints": [
@@ -111,8 +111,30 @@
         "configurationAttributes": {
           "launch": {
             "required": [
-              "root",
-              "program"
+              "root"
+            ],
+            "anyOf": [
+              {
+                "required": [
+                  "program"
+                ]
+              },
+              {
+                "properties": {
+                  "console": {
+                    "enum": [
+                      "remote"
+                    ]
+                  }
+                }
+              },
+              {
+                "not": {
+                  "required": [
+                    "port"
+                  ]
+                }
+              }
             ],
             "properties": {
               "exec": {
@@ -162,8 +184,18 @@
               },
               "port": {
                 "type": "number",
-                "description": "Port to listen for remote debuggers.",
-                "default": 5000
+                "description": "Port to listen for remote debuggers."
+              },
+              "console": {
+                "type": "string",
+                "enum": [
+                  "integratedTerminal",
+                  "externalTerminal",
+                  "remote",
+                  "none"
+                ],
+                "description": "Where to launch the debug target",
+                "default": "integratedTerminal"
               }
             }
           }
@@ -173,6 +205,7 @@
             "type": "perl",
             "request": "launch",
             "name": "Perl-Debug local",
+            "console": "integratedTerminal",
             "program": "${workspaceFolder}/${relativeFile}",
             "exec": "perl",
             "execArgs": [],
@@ -186,6 +219,7 @@
             "type": "perl",
             "request": "launch",
             "name": "Perl-Debug remote",
+            "console": "remote",
             "program": "${workspaceFolder}/${relativeFile}",
             "root": "${workspaceRoot}/",
             "stopOnEntry": true,

@@ -40,6 +40,7 @@ describe('Perl debug Adapter', () => {
 		inc: [],
 		args: [],
 		stopOnEntry: false,
+		console: 'none',
 		trace: false,
 	};
 
@@ -109,23 +110,42 @@ describe('Perl debug Adapter', () => {
 	describe('launch', () => {
 
 		it('should run program to the end', async () => {
-			const PROGRAM = Path.join(DATA_ROOT, FILE_FAST_TEST_PL);
 
-			assert.ok(fs.existsSync(PROGRAM), `Test program "${PROGRAM}" not found`);
-//			await dc.configurationSequence();
+			const PROGRAM = FILE_FAST_TEST_PL;
+
+			assert.ok(
+				fs.existsSync(Path.join(DATA_ROOT, PROGRAM)),
+				`Test program "${PROGRAM}" not found`
+			);
+
 			await Promise.all([
 				dc.waitForEvent('initialized'),
 				dc.waitForEvent('terminated'),
-				dc.launch(Configuration({ program: PROGRAM, stopOnEntry: false })),
+				dc.launch(Configuration({
+					program: PROGRAM,
+					stopOnEntry: false,
+					console: 'none'
+				})),
 			]);
 		});
 
 		it.skip('should stop on entry', async () => {
-			const PROGRAM = Path.join(DATA_ROOT, FILE_FAST_TEST_PL);
-			const ENTRY_LINE = 5;
 
-			assert.ok(fs.existsSync(PROGRAM), `Test program "${PROGRAM}" not found`);
-			await dc.launch(Configuration({ program: PROGRAM, stopOnEntry: true }));
+			const PROGRAM = FILE_FAST_TEST_PL;
+
+			assert.ok(
+				fs.existsSync(Path.join(DATA_ROOT, PROGRAM)),
+				`Test program "${PROGRAM}" not found`
+			);
+
+			const ENTRY_LINE = 7;
+
+			await dc.launch(Configuration({
+				program: PROGRAM,
+				stopOnEntry: true,
+				console: 'none'
+			}));
+
 			await dc.assertStoppedLocation('entry', { line: ENTRY_LINE } );
 		});
 	});
@@ -134,19 +154,23 @@ describe('Perl debug Adapter', () => {
 	// hint: It might be a missing "stop" event - is the application run?
 	describe.skip('setBreakpoints', () => {
 
-		it('should stop on a breakpoint', async () => {
-			const PROGRAM = Path.join(DATA_ROOT, FILE_FAST_TEST_PL);
-			const BREAKPOINT_LINE = 9;
+		const PROGRAM = FILE_FAST_TEST_PL;
 
-			assert.ok(fs.existsSync(PROGRAM), `Test program "${PROGRAM}" not found`);
+		it('should stop on a breakpoint', async () => {
+			const BREAKPOINT_LINE = 10;
+
+			assert.ok(
+				fs.existsSync(Path.join(DATA_ROOT, PROGRAM)),
+				`Test program "${PROGRAM}" not found`
+			);
 
 			await dc.hitBreakpoint(Configuration({ program: PROGRAM }), { path: PROGRAM, line: BREAKPOINT_LINE } );
 		});
 
 		it.skip('hitting a lazy breakpoint should send a breakpoint event', () => {
 
-			const PROGRAM = Path.join(DATA_ROOT, FILE_FAST_TEST_PL);
-			const BREAKPOINT_LINE = 6;
+			const PROGRAM = Path.join(FILE_FAST_TEST_PL);
+			const BREAKPOINT_LINE = 7;
 
 			return Promise.all([
 				dc.waitForEvent('breakpoint').then((event : DebugProtocol.BreakpointEvent ) => {
