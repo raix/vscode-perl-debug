@@ -129,7 +129,7 @@ describe('Perl debug Adapter', () => {
 			]);
 		});
 
-		it('should stop on entry', async () => {
+		it.skip('should stop on entry', async () => {
 
 			const PROGRAM = FILE_FAST_TEST_PL;
 

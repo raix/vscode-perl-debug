@@ -27,11 +27,19 @@ function setupDebugger(
 
 	// Not to conflict with VS Code jest ext
 	const port = 5000 + Math.round(Math.random()*100);
+
 	// Listen for remote debugger session
-	const server = conn.launchRequest(FILE_TEST_PL, DATA_ROOT, args, {
-		...launchOptions,
-		port: port, // Trigger server
-	});
+	const server = conn.launchRequest(
+		FILE_TEST_PL,
+		DATA_ROOT,
+		args,
+		{
+			...launchOptions,
+			port: port, // Trigger server
+		},
+		null
+	);
+
 	// Start "remote" debug session
 	const local = new LocalSession(FILE_TEST_PL, DATA_ROOT, args, {
 		...launchOptions,
@@ -51,7 +59,7 @@ describe('Perl debugger connection', () => {
 	let conn: perlDebuggerConnection;
 
 	beforeEach(() => {
-		conn = new perlDebuggerConnection(null);
+		conn = new perlDebuggerConnection();
 		return conn.initializeRequest();
 	});
 

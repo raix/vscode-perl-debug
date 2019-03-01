@@ -189,14 +189,13 @@
               "console": {
                 "type": "string",
                 "enum": [
-                  "deprecatedDebugConsole",
                   "integratedTerminal",
                   "externalTerminal",
                   "remote",
                   "none"
                 ],
                 "description": "Where to launch the debug target",
-                "default": "deprecatedDebugConsole"
+                "default": "integratedTerminal"
               }
             }
           }

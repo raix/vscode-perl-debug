@@ -101,13 +101,13 @@ function absoluteFilename(root: string, filename: string): string {
 export class perlDebuggerConnection {
 	public debug: boolean = false;
 	public perlDebugger: DebugSession;
+	public debuggee?: DebugSession;
+
 	public streamCatcher: StreamCatcher;
 	public perlVersion: string;
 	public padwalkerVersion: string;
 	public commandRunning: string = '';
 	public isRemote: boolean = false;
-
-	private session: PerlDebugSession | null;
 
 	private filename?: string;
 	private rootPath?: string;
@@ -123,8 +123,7 @@ export class perlDebuggerConnection {
 	 * Pass in the initial script and optional additional arguments for
 	 * running the script.
 	 */
-	constructor(session: PerlDebugSession) {
-		this.session = session;
+	constructor() {
 		this.streamCatcher = new StreamCatcher();
 	}
 
@@ -277,7 +276,98 @@ export class perlDebuggerConnection {
 		return res;
 	}
 
-	async launchRequest(filename: string, cwd: string, args: string[] = [], options:LaunchOptions = {}): Promise<RequestResponse> {
+	private async launchRequestTerminal(
+		filename: string,
+		cwd: string,
+		args: string[] = [],
+		options:LaunchOptions = {},
+		session: PerlDebugSession
+	): Promise<void> {
+
+		this.isRemote = false;
+		this.logOutput(`Launching program in terminal and waiting`);
+
+		// NOTE(bh): `localhost` is hardcoded here to ensure that for
+		// local debug sessions, the port is not exposed externally.
+		const bindHost = 'localhost';
+
+		this.perlDebugger = new RemoteSession(0, bindHost);
+
+		this.logOutput(this.perlDebugger.title());
+
+		// The RemoteSession will listen on a random available port,
+		// and since we need to connect to that port, we have to wait
+		// for it to become available.
+		await new Promise(
+			resolve => this.perlDebugger.on("listening", res => resolve(res))
+		);
+
+		const response = await new Promise((resolve, reject) => {
+			session.runInTerminalRequest({
+				kind: (
+					options.console === "integratedTerminal"
+						? "integrated"
+						: "external"
+				),
+				cwd: cwd,
+				args: [options.exec, "-d", filename].concat(options.args),
+				env: {
+					...options.env,
+
+					// TODO(bh): maybe merge user-specified options together
+					// with the RemotePort setting we need?
+					PERLDB_OPTS:
+						`RemotePort=${bindHost}:${this.perlDebugger.port}`,
+				}
+			}, 5000, response => {
+				if (response.success) {
+					resolve(response);
+				} else {
+					reject(response);
+				}
+			});
+		});
+
+	}
+
+	private async launchRequestNone(
+		filename: string,
+		cwd: string,
+		args: string[] = [],
+		options:LaunchOptions = {}
+	): Promise<void> {
+
+		const bindHost = 'localhost';
+
+		this.isRemote = false;
+		this.perlDebugger = new RemoteSession(0, bindHost);
+
+		this.logOutput(this.perlDebugger.title());
+
+		await new Promise(
+			resolve => this.perlDebugger.on("listening", res => resolve(res))
+		);
+
+		this.debuggee = new LocalSession(filename, cwd, args, {
+			...options,
+			env: {
+				...options.env,
+				// TODO(bh): maybe merge user-specified options together
+				// with the RemotePort setting we need?
+				PERLDB_OPTS:
+					`RemotePort=${bindHost}:${this.perlDebugger.port}`,
+			}
+		});
+
+	}
+
+	async launchRequest(
+		filename: string,
+		cwd: string,
+		args: string[] = [],
+		options:LaunchOptions = {},
+		session: PerlDebugSession
+	): Promise<RequestResponse> {
 
 		this.rootPath = cwd;
 		this.filename = filename;
@@ -309,72 +399,32 @@ export class perlDebuggerConnection {
 
 		switch (options.console) {
 
-			case "deprecatedDebugConsole": {
-				this.logOutput(`Launch mode console:deprecatedDebugConsole is deprecated and buggy`);
-				this.logOutput(`Launch "perl -d ${sourceFile}" in "${cwd}"`);
-				this.perlDebugger = new LocalSession(filename, cwd, args, options);
-				this.logOutput(this.perlDebugger.title());
-				this.isRemote = false;
-				break;
-			}
-
 			case "integratedTerminal":
 			case "externalTerminal": {
 
-				if (!this.session.dcSupportsRunInTerminal) {
-					// FIXME(bh): error handling.
+				if (!session.dcSupportsRunInTerminal) {
+
+					// FIXME(bh): better error handling.
+					this.logOutput(
+						`Error: console:${options.console} unavailable`
+					);
+
 					break;
+
 				}
 
-				this.isRemote = false;
-				this.logOutput(`Launching program in terminal and waiting`);
-
-				// NOTE(bh): `localhost` is hardcoded here to ensure that for
-				// local debug sessions, the port is not exposed externally.
-				const bindHost = 'localhost';
-
-				this.perlDebugger = new RemoteSession(0, bindHost);
-
-				this.logOutput(this.perlDebugger.title());
-
-				// The RemoteSession will listen on a random available port,
-				// and since we need to connect to that port, we have to wait
-				// for it to become available.
-				await new Promise(
-					resolve => this.perlDebugger.on("listening", res => resolve(res))
+				await this.launchRequestTerminal(
+					filename, cwd, args, options, session
 				);
-
-				await new Promise((resolve, reject) => {
-					this.session.runInTerminalRequest({
-						kind: (
-							options.console === "integratedTerminal"
-								? "integrated"
-								: "external"
-						),
-						cwd: cwd,
-						args: [options.exec, "-d", filename].concat(options.args),
-						env: {
-							...options.env,
-
-							// TODO(bh): maybe merge user-specified options together
-							// with the RemotePort setting we need?
-							PERLDB_OPTS:
-								`RemotePort=${bindHost}:${this.perlDebugger.port}`,
-						}
-					}, 5000, response => {
-						if (response.success) {
-							resolve(response);
-						} else {
-							reject(response);
-						}
-					});
-				});
 
 				break;
 			}
 
 			case "remote": {
-				this.logOutput(`Waiting for remote debugger to connect on port "${options.port}"`);
+
+				this.logOutput(
+					`Waiting for remote debugger to connect on port "${options.port}"`
+				);
 				this.perlDebugger = new RemoteSession(options.port);
 				this.isRemote = true;
 
@@ -388,33 +438,21 @@ export class perlDebuggerConnection {
 
 			case "none": {
 
-				const bindHost = 'localhost';
-
-				this.isRemote = false;
-				this.perlDebugger = new RemoteSession(0, bindHost);
-
-				this.logOutput(this.perlDebugger.title());
-
-				await new Promise(
-					resolve => this.perlDebugger.on("listening", res => resolve(res))
+				await this.launchRequestNone(
+					filename, cwd, args, options
 				);
-
-				// FIXME(bh): where do we keep a reference to this? This mode
-				// is intended primarily for the test suite.
-				const trackMe = new LocalSession(filename, cwd, args, {
-					...options,
-					env: {
-						...options.env,
-						PERLDB_OPTS:
-							`RemotePort=${bindHost}:${this.perlDebugger.port}`,
-					}
-				});
 
 				break;
 			}
 
 			default: {
-				// FIXME(bh): error handling?
+
+				// FIXME(bh): better error handling? Perhaps override bad
+				// values earlier in `resolveDebugConfiguration`?
+				this.logOutput(
+					`Error: console: ${options.console} unknown`
+				);
+
 				break;
 			}
 
@@ -461,11 +499,6 @@ export class perlDebuggerConnection {
 
 		// xxx: Prevent buffering issues ref: https://github.com/raix/vscode-perl-debug/issues/15#issuecomment-331435911
 		await this.streamCatcher.request('$| = 1;');
-
-		// if (options.port) {
-			// xxx: This will mix stderr and stdout into one dbout
-			// await this.streamCatcher.request('select($DB::OUT);');
-		// }
 
 		// Listen for a ready signal
 		const data = await this.streamCatcher.isReady()
@@ -782,6 +815,10 @@ export class perlDebuggerConnection {
 			this.streamCatcher.destroy();
 			this.perlDebugger.kill();
 			this.perlDebugger = null;
+		}
+		if (this.debuggee) {
+			this.debuggee.kill();
+			this.debuggee = null;
 		}
 	}
 }
