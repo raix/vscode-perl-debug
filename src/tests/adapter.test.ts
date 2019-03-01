@@ -40,7 +40,7 @@ describe('Perl debug Adapter', () => {
 		inc: [],
 		args: [],
 		stopOnEntry: false,
-		console: 'deprecatedDebugConsole',
+		console: 'none',
 		trace: false,
 	};
 
@@ -124,7 +124,7 @@ describe('Perl debug Adapter', () => {
 				dc.launch(Configuration({
 					program: PROGRAM,
 					stopOnEntry: false,
-					console: 'deprecatedDebugConsole'
+					console: 'none'
 				})),
 			]);
 		});
@@ -143,7 +143,7 @@ describe('Perl debug Adapter', () => {
 			await dc.launch(Configuration({
 				program: PROGRAM,
 				stopOnEntry: true,
-				console: 'deprecatedDebugConsole'
+				console: 'none'
 			}));
 
 			await dc.assertStoppedLocation('entry', { line: ENTRY_LINE } );
