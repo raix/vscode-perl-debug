@@ -116,7 +116,7 @@ export class PerlDebugSession extends LoggingDebugSession {
 		});
 
 		this.perlDebugger.on('perl-debug.debug', (x) => {
-			this.sendEvent(new Event('perl-debug.something', x));
+			this.sendEvent(new Event('perl-debug.debug', x));
 		});
 
 		this.perlDebugger.initializeRequest()
