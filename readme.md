@@ -28,6 +28,8 @@ A debugger for perl in vs code.
 * `env` Used for setting environment variables when debugging, `PATH` and `PERL5LIB` default to system unless overwritten
 * `trace` Boolean value to enable Debug Adapter Logging in `perl-debug.log` file
 * `port` Number for port to listen for remote debuggers to connect to. *(Used only for remote debugging)*
+* `console` String to identify where to launch the debuggee
+* `debugRaw` Boolean to enable logging of raw I/O with the Perl debugger in an output channel
 
 ### Setup notes
 
@@ -35,12 +37,14 @@ You might have to install the `PadWalker` Perl package for variable inspection o
 
 A standard `launch.json` will resemble the following (on Windows, *nix distros will differ slightly.)
 
+```json
     {
         "version": "0.2.0",
         "configurations": [
             {
                 "type": "perl",
                 "request": "launch",
+                "console": "integratedTerminal",
                 "exec": "C:/Perl64/bin/perl.exe",
                 "execArgs": [],
                 "name": "Perl Debug",
@@ -52,6 +56,7 @@ A standard `launch.json` will resemble the following (on Windows, *nix distros w
             }
         ]
     }
+```
 
 ### Remote debugger
 
@@ -108,6 +113,20 @@ Credits goes to Microsoft for making an awesome editor and a nice getting starte
 
 I don't care about stars, but for everybodys sake:
 Please use github for tracking issues and feature requests, thanks!
+
+When you report an issue, it can be very helpful to enable `debugRaw`
+in your launch configuration. When enabled, you should have an output
+channel named `Perl Debug RAW` with contents like:
+
+```json
+["2019-03-02T21:49:50.230Z","perl-debug.streamcatcher.write","127.0.0.1:40133 serving 127.0.0.1:43320","p $]\n"]
+["2019-03-02T21:49:50.231Z","perl-debug.streamcatcher.data","127.0.0.1:40133 serving 127.0.0.1:43320","5.028001"]
+...
+```
+
+These are the raw commands sent to the `perl5db.pl` debugger and the
+responses received. Including these in your report can make it easier
+to track down version differences and portability problems.
 
 I do take pull requests for both documentation and code improvements!
 

@@ -6,6 +6,7 @@
 
 import {Writable, Readable} from 'stream';
 import * as RX from './regExp';
+import { EventEmitter } from 'events';
 
 interface RequestTask {
 	command: string | null,
@@ -13,17 +14,12 @@ interface RequestTask {
 	reject: Function,
 }
 
-export class StreamCatcher {
+export class StreamCatcher extends EventEmitter {
 	public debug: boolean = false;
 	private requestQueue: RequestTask[] = [];
 	private requestRunning: RequestTask | null = null;
 
 	private buffer: string[] = [''];
-
-	// xxx: consider removing ready - the user should not have to care about that...
-	public ready: boolean = false;
-	private readyListeners = [];
-	private readyResponse: string[];
 
 	public input: Writable;
 
@@ -34,24 +30,19 @@ export class StreamCatcher {
 	}
 
 	constructor() {
-			// Listen for a ready signal
-			const result = this.request(null)
-				.then((res) => {
-					this.logDebug('ready', res);
-					this.readyResponse = res;
-					this.ready = true;
-					this.readyListeners.forEach(f => f(res));
-				});
-
+		super();
 	}
 
-	launch(input: Writable, output: Readable) {
+	async launch(input: Writable, output: Readable): Promise<string[]> {
 		this.input = input;
 
 		let lastBuffer = '';
 		let timeout: NodeJS.Timer | null = null;
 		output.on('data', (buffer) => {
+
 			this.logDebug('RAW:', buffer.toString());
+			this.emit('perl-debug.streamcatcher.data', buffer.toString());
+
 			const data = lastBuffer + buffer.toString();
 			const lines = data.split(/\r\n|\r|\n/);
 			const firstLine = lines[0];
@@ -99,6 +90,8 @@ export class StreamCatcher {
 				this.readline('   DB<0> ');
 			}
 		});
+
+		return this.request(null);
 	}
 
 	readline(line) {
@@ -138,7 +131,9 @@ export class StreamCatcher {
 			// a null command is used for the initial run, in that case we don't need to
 			// do anything but listen
 			if (this.requestRunning.command !== null) {
-				this.input.write(`${this.requestRunning.command}\n`);
+				const data = `${this.requestRunning.command}\n`;
+				this.emit('perl-debug.streamcatcher.write', data);
+				this.input.write(data);
 			}
 		}
 	}
@@ -157,19 +152,8 @@ export class StreamCatcher {
 		});
 	}
 
-	onReady(f) {
-		if (this.ready) {
-			f(this.readyResponse);
-		} else {
-			this.readyListeners.push(f);
-		}
-	}
-
-	isReady(): Promise<string[]> {
-		return new Promise(resolve => this.onReady(res => resolve(res)));
-	}
-
 	destroy() {
+		this.removeAllListeners();
 		return Promise.resolve();
 	}
 }

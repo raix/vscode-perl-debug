@@ -5,21 +5,20 @@ import { EventEmitter } from 'events';
 import { DebugSession, LaunchOptions } from './session';
 import { debuggerSignature } from './regExp';
 
-export class RemoteSession implements DebugSession {
+export class RemoteSession extends EventEmitter implements DebugSession {
 	public stdin: Writable;
 	public stdout: Readable;
 	public stderr: Readable;
-	public on: Function;
 	public kill: Function;
 	public title: Function;
 	public dump: Function;
 	public port: Number | null;
 
-	private event = new EventEmitter();
-
 	constructor(port: number, bindAddress: string = "0.0.0.0") {
+		super();
+
 		// Keep track of the chat clients
-		let client;
+		let client: net.Socket;
 
 		this.stdin = new Writable({
 			write(chunk, encoding, callback) {
@@ -27,6 +26,11 @@ export class RemoteSession implements DebugSession {
 					client.write(chunk);
 					callback();
 				}
+				// FIXME(bh): "The callback method must be called to signal
+				// either that the write completed successfully or failed
+				// with an error. The first argument passed to the callback
+				// must be the Error object if the call failed or null if
+				// the write succeeded." - nodejs documentation
 			},
 		});
 
@@ -64,7 +68,7 @@ export class RemoteSession implements DebugSession {
 
 			socket.on('end', data => {
 				this.stdout.push(`Connection closed by "${name}"`);
-				this.event.emit('close', data);
+				this.emit('close', data);
 
 				// NOTE(bh): This used to call `this.kill()`, but in remote
 				// debugging, when using the `R`estart command, the debugger
@@ -76,25 +80,24 @@ export class RemoteSession implements DebugSession {
 			});
 
 			socket.on('error', data => {
-				this.event.emit('error', data);
+				this.emit('error', data);
 			});
 		});
 
 		// Listen to port make it remotely available
 		server.listen(port, bindAddress, () => {
 			this.port = server.address().port;
-			this.event.emit('listening', () => {});
+			this.emit('listening', () => {});
 		});
 
 		server.on('error', data => {
-			this.event.emit('error', data);
+			this.emit('error', data);
 			this.kill();
 		});
 
-		this.on = (type, callback) => this.event.on(type, callback);
 		this.kill = () => {
 			server.removeAllListeners();
-			this.event.removeAllListeners();
+			this.removeAllListeners();
 			this.stdin.removeAllListeners();
 			this.stdout.removeAllListeners();
 			this.stderr.removeAllListeners();
@@ -108,5 +111,7 @@ export class RemoteSession implements DebugSession {
 		};
 		this.title = () => `Running debug server for remote session to connect on port "${port}"`;
 		this.dump = () => `debug server port ${port}`;
+		this.dump = () => `${server.address().address}:${server.address().port} serving ${client.remoteAddress}:${client.remotePort}`;
+
 	}
 }

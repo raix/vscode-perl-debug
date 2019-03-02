@@ -41,6 +41,8 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
 	port?,
 	/** Where to launch the debug target */
 	console?: string,
+	/** Log raw I/O with debugger in output channel */
+	debugRaw?: boolean,
 }
 
 export class PerlDebugSession extends LoggingDebugSession {
@@ -66,7 +68,7 @@ export class PerlDebugSession extends LoggingDebugSession {
 
 	public dcSupportsRunInTerminal: boolean = false;
 
-	private perlDebugger;
+	private perlDebugger: perlDebuggerConnection;
 
 	public constructor() {
 		super('perl_debugger.log');
@@ -93,24 +95,29 @@ export class PerlDebugSession extends LoggingDebugSession {
 
 		this.dcSupportsRunInTerminal = !!args.supportsRunInTerminalRequest;
 
-		// Rig output
-		this.perlDebugger.onOutput = (text) => {
+		this.perlDebugger.on('perl-debug.output', (text) => {
 			this.sendEvent(new OutputEvent(`${text}\n`));
-		};
+		});
 
-		this.perlDebugger.onException = (res) => {
+		this.perlDebugger.on('perl-debug.exception', (res) => {
 			// xxx: for now I need more info, code to go away...
 			const [ error ] = res.errors;
-			this.sendEvent(new OutputEvent(`onException: ${error && error.near}`));
-		};
+			this.sendEvent(
+				new OutputEvent(`${error.message}`, 'stderr')
+			);
+		});
 
-		this.perlDebugger.onTermination = (res) => {
+		this.perlDebugger.on('perl-debug.termination', (x) => {
 			this.sendEvent(new TerminatedEvent());
-		};
+		});
 
-		this.perlDebugger.onClose = (code) => {
+		this.perlDebugger.on('perl-debug.close', (x) => {
 			this.sendEvent(new TerminatedEvent());
-		};
+		});
+
+		this.perlDebugger.on('perl-debug.debug', (x) => {
+			this.sendEvent(new Event('perl-debug.something', x));
+		});
 
 		this.perlDebugger.initializeRequest()
 			.then(() => {
@@ -157,6 +164,20 @@ export class PerlDebugSession extends LoggingDebugSession {
 		logger.setup(args.trace ? Logger.LogLevel.Verbose : Logger.LogLevel.Stop, false);
 
 		await this._configurationDone.wait(1000);
+
+		this.perlDebugger.removeAllListeners('perl-debug.streamcatcher.data');
+		this.perlDebugger.removeAllListeners('perl-debug.streamcatcher.write');
+		this.sendEvent(new Event('perl-debug.streamcatcher.clear'));
+
+		if (args.debugRaw) {
+			this.perlDebugger.on('perl-debug.streamcatcher.data', (...x) => {
+				this.sendEvent(new Event('perl-debug.streamcatcher.data', x));
+			});
+
+			this.perlDebugger.on('perl-debug.streamcatcher.write', (...x) => {
+				this.sendEvent(new Event('perl-debug.streamcatcher.write', x));
+			});
+		}
 
 		const launchResponse = await this.perlDebugger.launchRequest(
 			args.program,

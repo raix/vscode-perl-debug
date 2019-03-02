@@ -7,6 +7,55 @@ import {
 	CancellationToken
 } from 'vscode';
 
+let perlDebugOutputChannel: vscode.OutputChannel | undefined;
+let streamCatcherOutputChannel: vscode.OutputChannel | undefined;
+
+function handleStreamCatcherEvent(
+	event: vscode.DebugSessionCustomEvent
+) {
+
+	if (!streamCatcherOutputChannel) {
+
+		streamCatcherOutputChannel = vscode.window.createOutputChannel(
+			'Perl Debug RAW'
+		);
+
+		streamCatcherOutputChannel.show(true);
+
+	}
+
+	streamCatcherOutputChannel.appendLine(
+		JSON.stringify([
+			new Date().toISOString(),
+			event.event,
+			...event.body,
+		])
+	);
+
+}
+
+function handleCustomEvent(event: vscode.DebugSessionCustomEvent) {
+
+	if (event.session.type !== 'perl') {
+		return;
+	}
+
+	switch (event.event) {
+		case 'perl-debug.streamcatcher.write':
+		case 'perl-debug.streamcatcher.data':
+			handleStreamCatcherEvent(event);
+			break;
+		case 'perl-debug.streamcatcher.clear':
+			if (streamCatcherOutputChannel) {
+				streamCatcherOutputChannel.clear();
+			}
+			break;
+		default:
+			return;
+	}
+
+}
+
 export function activate(context: vscode.ExtensionContext) {
 
 	const debugProvider = new PerlDebugConfigurationProvider();
@@ -17,32 +66,16 @@ export function activate(context: vscode.ExtensionContext) {
 		)
 	);
 
-	// NOTE: currently disabled, but this allows sending data into an
-	// output stream ("Perl Debug" in the Output panel) as possible
-	// alternative to logging to the debug console using something like
-	// `session.sendEvent('perlDebugOutput', '...')`.
-
-	// const outputChannel = vscode.window.createOutputChannel(
-	// 	'Perl Debug'
-	// );
-
-	// outputChannel.show(true);
-
-	// context.subscriptions.push(
-	// 	vscode.debug.onDidReceiveDebugSessionCustomEvent(
-	// 		event => {
-	// 			// TODO(bh): Find out if there are event naming conventions.
-	// 			if (event.event !== 'perlDebugOutput') {
-	// 				return;
-	// 			}
-	// 			outputChannel.appendLine(event.body);
-	// 		}
-	// 	)
-	// );
+	context.subscriptions.push(
+		vscode.debug.onDidReceiveDebugSessionCustomEvent(
+			handleCustomEvent
+		)
+	);
 
 }
 
-export function deactivate() {
+export function deactivate(): Thenable<void> {
+	return;
 }
 
 class PerlDebugConfigurationProvider implements vscode.DebugConfigurationProvider {
