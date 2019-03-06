@@ -13,6 +13,7 @@ import { PerlDebugSession } from './perlDebug';
 import {
 	Event as VscodeEvent
 } from 'vscode-debugadapter';
+import { EventEmitter } from 'events';
 
 interface ResponseError {
 	filename: string,
@@ -20,6 +21,7 @@ interface ResponseError {
 	message: string,
 	near: string,
 	type: string,
+	name: string,
 }
 
 interface Variable {
@@ -98,7 +100,7 @@ function absoluteFilename(root: string, filename: string): string {
 	return join(root, filename);
 }
 
-export class perlDebuggerConnection {
+export class perlDebuggerConnection extends EventEmitter {
 	public debug: boolean = false;
 	public perlDebugger: DebugSession;
 	public debuggee?: DebugSession;
@@ -113,17 +115,12 @@ export class perlDebuggerConnection {
 	private rootPath?: string;
 	private currentfile?: string;
 
-	public onOutput: Function | null = null;
-	public onError: Function | null = null;
-	public onClose: Function | null = null;
-	public onException: Function | null = null;
-	public onTermination: Function | null = null;
-
 	/**
 	 * Pass in the initial script and optional additional arguments for
 	 * running the script.
 	 */
 	constructor() {
+		super();
 		this.streamCatcher = new StreamCatcher();
 	}
 
@@ -131,13 +128,7 @@ export class perlDebuggerConnection {
 	}
 
 	logOutput(data: string) {
-		if (typeof this.onOutput === 'function') {
-			try {
-				this.onOutput(data);
-			} catch (err) {
-				throw new Error(`Error in "onOutput" handler: ${err.message}`);
-			}
-		}
+		this.emit('perl-debug.output', data);
 	}
 
 	logData(prefix: string, data: string[]) {
@@ -147,13 +138,18 @@ export class perlDebuggerConnection {
 	}
 
 	logDebug(...args: any[]) {
+		this.emit('perl-debug.debug', ...args);
 		if (this.debug) {
 			console.log(...args);
 		}
 	}
 
+	logRequestResponse(res: RequestResponse) {
+		this.logDebug(res);
+	}
+
 	parseResponse(data: string[]): RequestResponse {
-		const res = {
+		const res: RequestResponse = {
 			data: [],
 			orgData: data,
 			ln: 0,
@@ -244,34 +240,18 @@ export class perlDebuggerConnection {
 			}
 		});
 
-		if (res.exception || res.finished) {
+		if (res.finished) {
 			// Close the connection to perl debugger
 			this.perlDebugger.kill();
 		}
 
 		if (res.exception) {
-			if (typeof this.onException === 'function') {
-				try {
-					this.onException(res)
-				} catch (err) {
-					throw new Error(`Error in "onException" handler: ${err.message}`);
-				}
-			}
+			this.emit('perl-debug.exception', res);
 		} else if (res.finished) {
-			if (typeof this.onTermination === 'function') {
-				try {
-					this.onTermination(res)
-				} catch (err) {
-					throw new Error(`Error in "onTermination" handler: ${err.message}`);
-				}
-			}
+			this.emit('perl-debug.termination', res);
 		}
 
-		this.logDebug(res);
-
-		if (res.exception) {
-			throw res;
-		}
+		this.logRequestResponse(res);
 
 		return res;
 	}
@@ -467,10 +447,6 @@ export class perlDebuggerConnection {
 			this.logOutput( `DUMP: ${this.perlDebugger.dump()}` );
 		});
 
-		this.streamCatcher.launch(this.perlDebugger.stdin, this.perlDebugger.stderr);
-
-		// this.streamCatcher.debug = this.debug;
-
 		// Handle program output
 		this.perlDebugger.stdout.on('data', (buffer) => {
 			const data = buffer.toString().split('\n');
@@ -479,29 +455,57 @@ export class perlDebuggerConnection {
 
 		this.perlDebugger.on('close', (code) => {
 			this.commandRunning = '';
-			if (this.streamCatcher.ready) {
-				this.logOutput(`Debugger connection closed`);
-			} else {
-				this.logOutput(`Could not connect to debugger, connection closed`);
-			}
-			if (typeof this.onClose === 'function') {
-				try {
-					this.onClose(code);
-				} catch (err) {
-					throw new Error(`Error in "onClose" handler: ${err.message}`);
-				}
-			}
+			this.logOutput(`Debugger connection closed`);
+			this.emit('perl-debug.close', code);
 		});
+
+		const data = await this.streamCatcher.launch(
+			this.perlDebugger.stdin,
+			this.perlDebugger.stderr
+		);
+
+		this.streamCatcher.on('perl-debug.streamcatcher.data', (...x) => {
+			this.emit(
+				'perl-debug.streamcatcher.data',
+				this.perlDebugger.dump(),
+				...x
+			);
+		});
+
+		this.streamCatcher.on('perl-debug.streamcatcher.write', (...x) => {
+			this.emit(
+				'perl-debug.streamcatcher.write',
+				this.perlDebugger.dump(),
+				...x
+			);
+		});
+
+		// NOTE(bh): By default warnings should be shown in the terminal
+		// where the debugee's STDERR is shown. However, some versions of
+		// Perl default https://rt.perl.org/Ticket/Display.html?id=133875
+		// to redirecting warning output into the debugger's STDERR, so
+		// we undo that here.
+		await this.streamCatcher.request(
+			'o warnLevel=0'
+		);
+
+		// this.streamCatcher.debug = this.debug;
 
 		// Depend on the data dumper for the watcher
 		// await this.streamCatcher.request('use Data::Dumper');
 		await this.streamCatcher.request('$DB::single = 1;');
 
-		// xxx: Prevent buffering issues ref: https://github.com/raix/vscode-perl-debug/issues/15#issuecomment-331435911
-		await this.streamCatcher.request('$| = 1;');
+		// NOTE(bh): Since we are no longer connected directly to the
+		// debuggee when interacting with the debugger, there is no need
+		// to do this anymore. The `$DB::OUT` handle is set to autoflush
+		// by `perl5db.pl` already and it does not have an output handle
+		// besides of that. Doing this changes the debuggee's autoflush
+		// behavior which we should not do if at all avoidable.
 
-		// Listen for a ready signal
-		const data = await this.streamCatcher.isReady()
+		// xxx: Prevent buffering issues ref: https://github.com/raix/vscode-perl-debug/issues/15#issuecomment-331435911
+		// await this.streamCatcher.request('$| = 1;');
+
+		// Initial data from debugger
 		this.logData('', data.slice(0, data.length-2));
 
 		try {
@@ -523,12 +527,10 @@ export class perlDebuggerConnection {
 	}
 
 	async request(command: string): Promise<RequestResponse> {
-		await this.streamCatcher.isReady();
 		return this.parseResponse(await this.streamCatcher.request(command));
 	}
 
 	async relativePath(filename: string) {
-		await this.streamCatcher.isReady();
 		return path.relative(this.rootPath, filename || '');
 	}
 
@@ -558,7 +560,7 @@ export class perlDebuggerConnection {
 		return Promise.all([this.setFileContext(filename), this.request(`b ${ln}`)])
 			.then(result => {
 				const res = <RequestResponse>result.pop();
-				this.logDebug(res);
+				this.logRequestResponse(res);
 				if (res.data.length) {
 					if (/not breakable\.$/.test(res.data[0])) {
 						throw new Error(res.data[0] + ' ' + filename + ':' + ln);
@@ -574,7 +576,7 @@ export class perlDebuggerConnection {
 	async getBreakPoints() {
 		const res = await this.request(`L b`);
 		const breakpoints = {};
-		this.logDebug(res);
+		this.logRequestResponse(res);
 		let currentFile = 'unknown';
 		res.data.forEach(line => {
 			if (RX.breakPoint.condition.test(line)) {
@@ -792,12 +794,13 @@ export class perlDebuggerConnection {
 	}
 
 	async getPerlVersion(): Promise<string> {
-		const res = await this.request('p $]');
-		return res.data[0];
+		return this.getExpressionValue('$]');
 	}
 
 	async getPadwalkerVersion(): Promise<string> {
-		const res = await this.request('print $DB::OUT eval { require PadWalker; PadWalker->VERSION() }');
+		const res = await this.request(
+			'p sub { local $@; eval "require PadWalker; PadWalker->VERSION()" }->()'
+		);
 		const version = res.data[0];
 		if (/^[0-9]+\.?([0-9]?)+$/.test(version)) {
 			return version;

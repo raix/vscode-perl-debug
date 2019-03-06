@@ -196,6 +196,11 @@
                 ],
                 "description": "Where to launch the debug target",
                 "default": "integratedTerminal"
+              },
+              "debugRaw": {
+                "type": "boolean",
+                "description": "Log raw I/O with debugger in output channel",
+                "default": false
               }
             }
           }
