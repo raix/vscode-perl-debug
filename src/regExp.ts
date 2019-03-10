@@ -1,5 +1,9 @@
 export const colors = /\u001b\[([0-9]+)m|\u001b/g;
-export const db = /^DB\<\<?([0-9]+)\>?\>$/;
+
+// TODO(bh): Perhaps unify this with debuggerSignature by making
+// whitespace entirely optional in the latter regular expression?
+export const db = /^(\[(pid=)?[0-9\->]+\])?(\[\d+\])?DB\<+([0-9]+)\>+$/;
+
 export const restartWarning = /^Warning: some settings and command-line options may be lost!/;
 
 export const breakPoint = {
@@ -51,4 +55,11 @@ export const codeErrorRuntime = /([\S|\s]+) at (\S+) line ([0-9]+)\.$/;
 // EG. PadWalker for scope investigation
 export const codeErrorMissingModule = /^(\S+) module not found - please install$/;
 
-export const debuggerSignature = /^  DB<[0-9]+> $/;
+// Optional `pidprompt` like `[pid=123->456->789]` followed by an
+// optional thread id, followed by `DB`, and for nested debuggers
+// the number of `<` and `>` corresponds to the level of nesting.
+export const debuggerSignature = /^(\[pid=[0-9>\-]+\])? (\[\d+\])? DB<+[0-9]+>+ $/;
+
+export const watchpointChange = /^Watchpoint (\d+):\t(.*) changed:/;
+export const watchpointOldval = /^\s+old value:\t'(.*)'/;
+export const watchpointNewval = /^\s+new value:\t'(.*)'/;

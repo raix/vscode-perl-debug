@@ -1,18 +1,19 @@
 import {join, dirname, sep} from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import {spawn} from 'child_process';
 import {StreamCatcher} from './streamCatcher';
 import * as RX from './regExp';
 import variableParser, { ParsedVariable, ParsedVariableScope } from './variableParser';
-import { DebugSession, LaunchOptions } from './session';
+import { DebugSession } from './session';
+
 import { LocalSession } from './localSession';
 import { RemoteSession } from './remoteSession';
-import { PerlDebugSession } from './perlDebug';
+import { AttachSession } from './attachSession';
 
-import {
-	Event as VscodeEvent
-} from 'vscode-debugadapter';
+import { PerlDebugSession, LaunchRequestArguments } from './perlDebug';
+
 import { EventEmitter } from 'events';
 
 interface ResponseError {
@@ -22,6 +23,12 @@ interface ResponseError {
 	near: string,
 	type: string,
 	name: string,
+}
+
+interface WatchpointChange {
+	expression: string;
+	oldValue?: string;
+	newValue?: string;
 }
 
 interface Variable {
@@ -50,6 +57,8 @@ export interface RequestResponse {
 	finished: boolean,
 	command?:string,
 	db?:string,
+	changes: WatchpointChange[];
+	special: string[];
 }
 
 function findFilenameLine(str: string): string[] {
@@ -108,13 +117,15 @@ export class perlDebuggerConnection extends EventEmitter {
 	public streamCatcher: StreamCatcher;
 	public perlVersion: string;
 	public padwalkerVersion: string;
+	public develVscodeVersion?: string;
+	public hostname?: string;
 	public commandRunning: string = '';
-	public isRemote: boolean = false;
+	public canSignalDebugger: boolean = false;
 	public debuggerPid?: number;
+	public programBasename?: string;
 
 	private filename?: string;
 	private rootPath?: string;
-	private currentfile?: string;
 
 	/**
 	 * Pass in the initial script and optional additional arguments for
@@ -161,7 +172,13 @@ export class perlDebuggerConnection extends EventEmitter {
 			finished: false,
 			command: '',
 			db: '',
+			changes: [],
+			special: [],
 		};
+
+		if (res.orgData.filter(x => /vscode:/.test(x)).length > 0) {
+			let abc = 123;
+		}
 
 		res.orgData.forEach((line, i) => {
 			if (i === 0) {
@@ -192,6 +209,87 @@ export class perlDebuggerConnection extends EventEmitter {
 				if (/^exception/.test(line)) {
 					// xxx: investigate if this is already handled
 				//	res.exception = true;
+				}
+
+				if (/^Daughter DB session started\.\.\./.test(line)) {
+					// TODO(bh): `perl5db.pl` is a bit odd here, when using the
+					// typical `TERM=xterm perl -d` this is printed in the main
+					// console, but with RemotePort set, this seems to launch a
+					// new tty and does nothing with it but print this message.
+					// Might be a good idea to investigate further.
+				}
+
+				if (/^vscode: /.test(line)) {
+					res.special.push(line);
+				}
+
+				// Collection of known messages that are not handled in any
+				// special way and probably need not be handled either. But
+				// it might be a good idea to go over them some day and see
+				// if they should be surfaced in the user interface.
+				//
+				// if (/^Loading DB routines from (.*)/.test(line)) {
+				// }
+				//
+				// if (/^Editor support (.*)/.test(line)) {
+				// }
+				//
+				// if (/^Enter h or 'h h' for help, or '.*perldebug' for more help/.test(line)) {
+				// }
+				//
+				// if (/^The old f command is now the r command\./.test(line)) {
+				// }
+				//
+				// if (/^The new f command switches filenames\./.test(line)) {
+				// }
+				//
+				// if (/^No file matching '(.*)' is loaded\./.test(line)) {
+				// }
+				//
+				// if (/^Already in (.*)\./.test(line)) {
+				// }
+				//
+				// if (/^Subroutine (.*) not found\./.test(line)) {
+				// }
+				//
+				// if (/^exec failed: (.*)/.test(line)) {
+				// }
+				//
+				// if (/^(\d+) levels deep in subroutine calls!/.test(line)) {
+				// }
+
+				// NOTE: this was supposed to handle when `w $$` triggers,
+				// but it turns out `perl5db.pl` prints this to the wrong
+				// tty, that is, in the fork() parent, while the change is
+				// actually in the child.
+
+				// Watchpoint 0: $example changed:
+				if (RX.watchpointChange.test(line)) {
+					const parts = line.match(RX.watchpointChange);
+					const [, unstableId, expression ] = parts;
+					res.changes.push({
+						expression: expression,
+					});
+				}
+
+				if (RX.watchpointOldval.test(line)) {
+					const parts = line.match(RX.watchpointOldval);
+					const [, oldValue ] = parts;
+
+					// FIXME(bh): This approach for handling watchpoint changes
+					// is probably not sound if the expression being watched
+					// stringifies as multiple lines. But internally we only
+					// use a single watch expression where this is not an issue
+					// and for data breakpoints configured through vscode user
+					// interface it might be best to wrap expression so that it
+					// would not be possible to get multiple lines in return.
+					res.changes[res.changes.length - 1].oldValue = oldValue;
+				}
+
+				if (RX.watchpointNewval.test(line)) {
+					const parts = line.match(RX.watchpointNewval);
+					const [, newValue ] = parts;
+					res.changes[res.changes.length - 1].newValue = newValue;
 				}
 
 				if (/^Debugged program terminated/.test(line)) {
@@ -241,9 +339,25 @@ export class perlDebuggerConnection extends EventEmitter {
 			}
 		});
 
+		// This happens for example because we replaced `DB::postponed`
+		// with a function that reports newly loaded sources and subs
+		// to us.
+		if (res.special.filter(x => /vscode: new loaded source/.test(x)).length) {
+			this.emit('perl-debug.new-source');
+		}
+
+		if (res.special.filter(x => /vscode: new subroutine/.test(x)).length) {
+			this.emit('perl-debug.new-subroutine');
+		}
+
 		if (res.finished) {
-			// Close the connection to perl debugger
-			this.perlDebugger.kill();
+			// Close the connection to perl debugger. We try to ask nicely
+			// here, otherwise we might generate a SIGPIPE signal which can
+			// confuse some Perl programs like `prove` during multi-session
+			// debugging.
+			this.request('q')
+				.then(() => this.perlDebugger.kill())
+				.catch(() => this.perlDebugger.kill());
 		}
 
 		if (res.exception) {
@@ -252,27 +366,69 @@ export class perlDebuggerConnection extends EventEmitter {
 			this.emit('perl-debug.termination', res);
 		}
 
+		if (res.changes.length > 0) {
+			this.emit('perl-debug.databreak', res);
+		}
+
+		// FIXME(bh): v0.5.0 and earlier of the extension treated all the
+		// debugger commands the same, as if they return quickly and with
+		// a result of some kind. This led to confusion on part of vscode
+		// about whether the debuggee is currently running or stopped.
+		//
+		// We need to send a `StoppedEvent` when the debugger transitions
+		// from executing the debuggee to accepting commands from us, and
+		// must not send a `StoppedEvent` when we are in the middle of
+		// servicing requests from vscode to populate the debug user
+		// interface after a `StoppedEvent`, otherwise vscode will enter
+		// an infinite loop.
+		//
+		// So this is a bit of a kludge to do just that. Better would be
+		// a re-design of how I/O with the debugger works, like having a
+		// `resume(command: string)` method for these special commands,
+		// but that probably requires some surgery through streamCatcher.
+
+		if (/^[scnr]\b/.test(res.command)) {
+			this.emit('perl-debug.stopped');
+		}
+
 		this.logRequestResponse(res);
 
 		return res;
 	}
 
+	private async launchRequestAttach(
+		args: LaunchRequestArguments
+	): Promise<void> {
+
+		const bindHost = 'localhost';
+
+		this.canSignalDebugger = false;
+
+		this.perlDebugger = new AttachSession(args.port, bindHost);
+
+		await new Promise(
+			resolve => this.perlDebugger.on("connect", res => resolve(res))
+		);
+
+	}
+
 	private async launchRequestTerminal(
-		filename: string,
-		cwd: string,
-		args: string[] = [],
-		options:LaunchOptions = {},
+		args: LaunchRequestArguments,
 		session: PerlDebugSession
 	): Promise<void> {
 
-		this.isRemote = false;
+		this.canSignalDebugger = true;
 		this.logOutput(`Launching program in terminal and waiting`);
 
 		// NOTE(bh): `localhost` is hardcoded here to ensure that for
 		// local debug sessions, the port is not exposed externally.
 		const bindHost = 'localhost';
 
-		this.perlDebugger = new RemoteSession(0, bindHost);
+		this.perlDebugger = new RemoteSession(
+			0,
+			bindHost,
+			args.sessions
+		);
 
 		this.logOutput(this.perlDebugger.title());
 
@@ -286,14 +442,20 @@ export class perlDebuggerConnection extends EventEmitter {
 		const response = await new Promise((resolve, reject) => {
 			session.runInTerminalRequest({
 				kind: (
-					options.console === "integratedTerminal"
+					args.console === "integratedTerminal"
 						? "integrated"
 						: "external"
 				),
-				cwd: cwd,
-				args: [options.exec, "-d", filename].concat(options.args),
+				cwd: args.root,
+				args: [
+					args.exec,
+					...args.execArgs,
+					"-d",
+					args.program,
+					...args.args
+				],
 				env: {
-					...options.env,
+					...args.env,
 
 					// TODO(bh): maybe merge user-specified options together
 					// with the RemotePort setting we need?
@@ -312,16 +474,17 @@ export class perlDebuggerConnection extends EventEmitter {
 	}
 
 	private async launchRequestNone(
-		filename: string,
-		cwd: string,
-		args: string[] = [],
-		options:LaunchOptions = {}
+		args: LaunchRequestArguments
 	): Promise<void> {
 
 		const bindHost = 'localhost';
 
-		this.isRemote = false;
-		this.perlDebugger = new RemoteSession(0, bindHost);
+		this.canSignalDebugger = true;
+		this.perlDebugger = new RemoteSession(
+			0,
+			bindHost,
+			args.sessions
+		);
 
 		this.logOutput(this.perlDebugger.title());
 
@@ -329,10 +492,13 @@ export class perlDebuggerConnection extends EventEmitter {
 			resolve => this.perlDebugger.on("listening", res => resolve(res))
 		);
 
-		this.debuggee = new LocalSession(filename, cwd, args, {
-			...options,
+		this.debuggee = new LocalSession({
+			...args,
+			program: args.program,
+			root: args.root,
+			args: args.args,
 			env: {
-				...options.env,
+				...args.env,
 				// TODO(bh): maybe merge user-specified options together
 				// with the RemotePort setting we need?
 				PERLDB_OPTS:
@@ -342,23 +508,222 @@ export class perlDebuggerConnection extends EventEmitter {
 
 	}
 
+	private async launchRequestRemote(
+		args: LaunchRequestArguments
+	): Promise<void> {
+
+		// FIXME(bh): Logging the port here makes no sense when the
+		// port is set to zero (which causes random one to be selected)
+
+		this.logOutput(
+			`Waiting for remote debugger to connect on port "${args.port}"`
+		);
+
+		this.perlDebugger = new RemoteSession(
+			args.port,
+			'0.0.0.0',
+			args.sessions
+		);
+		this.canSignalDebugger = false;
+
+		// FIXME(bh): this does not await the listening event since we
+		// already know the port number beforehand, and probably we do
+		// still wait (due to the streamCatcher perhaps?) for streams
+		// to become usable, it still seems weird though to not await.
+
+	}
+
+	async launchSession(
+		args: LaunchRequestArguments,
+		session: PerlDebugSession
+	) {
+
+		switch (args.console) {
+
+			case "integratedTerminal":
+			case "externalTerminal": {
+
+				if (!session || !session.dcSupportsRunInTerminal) {
+
+					// FIXME(bh): better error handling.
+					this.logOutput(
+						`Error: console:${args.console} unavailable`
+					);
+
+					break;
+
+				}
+
+				await this.launchRequestTerminal( args, session );
+
+				break;
+			}
+
+			case "remote": {
+				await this.launchRequestRemote(args);
+				break;
+			}
+
+			case "none": {
+				await this.launchRequestNone(args);
+				break;
+			}
+
+			case "_attach": {
+				await this.launchRequestAttach(args);
+				break;
+			}
+
+			default: {
+
+				// FIXME(bh): better error handling? Perhaps override bad
+				// values earlier in `resolveDebugConfiguration`?
+				this.logOutput(
+					`Error: console: ${args.console} unknown`
+				);
+
+				break;
+			}
+
+		}
+
+	}
+
+	private async canSignalHeuristic(): Promise<boolean> {
+
+		// Execution control requests such as `terminate` and `pause` are
+		// at least in part implemented through sending signals to the
+		// debugger/debuggee process. That can only be done on the local
+		// system. But users might use remote debug configurations on the
+		// local machine, in which case it would be a shame if `pause`
+		// did not work.
+		//
+		// There is no easy and portable way to generate something like a
+		// globally unique process identifier that could be used to make
+		// sure we actually are on the same system, but a heuristic might
+		// be fair enough. If it looks as though Perl can signal us, and
+		// we can signal Perl, and we think we run on systems with the
+		// same hostname, we simply assume that we in fact do so.
+		//
+		// On Linux `/proc/sys/kernel/random/boot_id` could be compared,
+		// if we and Perl see the same contents, we very probably are on
+		// the same system. Similarily, other `/proc/` details could be
+		// compared. We cannot use socket address comparisons since the
+		// user might have their own forwarding setup in place.
+
+		if (os.hostname() !== this.hostname) {
+			return false;
+		}
+
+		const debuggerCanSignalUs = await this.getExpressionValue(
+			`CORE::kill(0, ${process.pid})`
+		);
+
+		if (!debuggerCanSignalUs) {
+			return false;
+		}
+
+		try {
+			process.kill(this.debuggerPid, 0);
+		} catch (e) {
+			return false;
+		}
+
+		return true;
+	}
+
+	private async installSubroutines() {
+
+		// https://metacpan.org/pod/Devel::vscode register a namespace
+		// on CPAN for use in this extension. For some features, we have
+		// to execute Perl code in the debugger, and sometimes it can be
+		// unwieldy to send the whole code to the debugger every time.
+		// There are also features that benefit from persisting data on
+		// Perl's end. So this installs a couple of subroutines for such
+		// features. For these, it is not necessary for users of the
+		// extension to install or otherwise load `Devel::vscode`.
+
+		const singleLine = (strings, ...args) => {
+			return strings.join('').replace(/\n/g, " ");
+		};
+
+		const unreportedSources = singleLine`
+			sub Devel::vscode::_unreportedSources {
+				return join "\t", grep {
+					my $old = $Devel::vscode::_reportedSources{$_};
+					$Devel::vscode::_reportedSources{$_} = $$;
+					not defined $old or $old ne $$
+				} grep { /^_<[^(]/ } keys %main::
+			}
+		`;
+
+		// Perl stores file source code in `@{main::_<example.pl}`
+		// arrays. This retrieves the code in %xx-escaped form to
+		// ensure we only get a single line of output.
+		const getSourceCode = singleLine`
+			sub Devel::vscode::_getSourceCode {
+				local $_ = join("", @{"main::_<@_"});
+				s/([^a-zA-Z0-9\\x{80}-\\x{10FFFF}])/
+					sprintf '%%%02x', ord "$1"/ge;
+				return $_
+			}
+		`;
+
+		// As perl `perldebuts`, "After each required file is compiled,
+		// but before it is executed, DB::postponed(*{"_<$filename"}) is
+		// called if the subroutine DB::postponed exists." and "After
+		// each subroutine subname is compiled, the existence of
+		// $DB::postponed{subname} is checked. If this key exists,
+		// DB::postponed(subname) is called if the DB::postponed
+		// subroutine also exists."
+		//
+		// Overriding the function with a thin wrapper like this would
+		// give us a chance to report any newly loaded source directly
+		// instead of repeatedly polling for it, which could be used to
+		// make breakpoints more reliable. Same probably for function
+		// breakpoints if they are registered as explained above.
+		//
+		// Note that when a Perl process is `fork`ed, we may already have
+		// wrapped the original function and must avoid doing it again.
+		// This is not actually used at the moment. We cannot usefully
+		// break into the debugger here, since there is no good way to
+		// resume exactly as the user originally intended. There would
+		// have to be a way to process such messages asynchronously as
+		// they arrive.
+
+		const breakOnLoad = singleLine`
+			package DB;
+			*DB::postponed = sub {
+				my ($old_postponed) = @_;
+				$Devel::vscode::_overrodePostponed = 1;
+				return sub {
+					if ('GLOB' eq ref(\\$_[0]) and $_[0] =~ /<(.*)\s*$/s) {
+						print { $DB::OUT } "vscode: new loaded source $1\\n";
+					} else {
+						print { $DB::OUT } "vscode: new subroutine $_[0]\\n";
+					}
+					&{$old_postponed};
+				};
+			}->(\\&DB::postponed) unless $Devel::vscode::_overrodePostponed;
+		`;
+
+		await this.request(unreportedSources);
+		await this.request(getSourceCode);
+		await this.request(breakOnLoad);
+	}
+
 	async launchRequest(
-		filename: string,
-		cwd: string,
-		args: string[] = [],
-		options:LaunchOptions = {},
+		args: LaunchRequestArguments,
 		session: PerlDebugSession
 	): Promise<RequestResponse> {
 
-		this.rootPath = cwd;
-		this.filename = filename;
-		this.currentfile = filename;
-		const sourceFile = filename;
+		this.rootPath = args.root;
+		this.filename = args.program;
 
 		this.logDebug(`Platform: ${process.platform}`);
 
-		Object.keys(options.env || {}).forEach(key => {
-			this.logDebug(`env.${key}: "${options.env[key]}"`);
+		Object.keys(args.env || {}).forEach(key => {
+			this.logDebug(`env.${key}: "${args.env[key]}"`);
 		});
 
 		// Verify file and folder existence
@@ -368,76 +733,20 @@ export class perlDebuggerConnection extends EventEmitter {
 		// we just create a server for a remote client to connect to? It
 		// seems it should be possible to `F5` without specifying a file.
 
-		if (!fs.existsSync(sourceFile)) {
-			this.logOutput( `Error: File ${sourceFile} not found`);
+		// FIXME(bh): Check needs to account for args.root
+
+		if (!fs.existsSync(args.program)) {
+			this.logOutput(`Error: File ${args.program} not found`);
 		}
 
-		if (cwd && !fs.existsSync(cwd)) {
-			this.logOutput( `Error: Folder ${cwd} not found`);
+		if (args.root && !fs.existsSync(args.root)) {
+			this.logOutput(`Error: Folder ${args.root} not found`);
 		}
 
 		this.logOutput(`Platform: ${process.platform}`);
 
-		switch (options.console) {
-
-			case "integratedTerminal":
-			case "externalTerminal": {
-
-				if (!session.dcSupportsRunInTerminal) {
-
-					// FIXME(bh): better error handling.
-					this.logOutput(
-						`Error: console:${options.console} unavailable`
-					);
-
-					break;
-
-				}
-
-				await this.launchRequestTerminal(
-					filename, cwd, args, options, session
-				);
-
-				break;
-			}
-
-			case "remote": {
-
-				this.logOutput(
-					`Waiting for remote debugger to connect on port "${options.port}"`
-				);
-				this.perlDebugger = new RemoteSession(options.port);
-				this.isRemote = true;
-
-				// FIXME(bh): this does not await the listening event since we
-				// already know the port number beforehand, and probably we do
-				// still wait (due to the streamCatcher perhaps?) for streams
-				// to become usable, it still seems weird though to not await.
-
-				break;
-			}
-
-			case "none": {
-
-				await this.launchRequestNone(
-					filename, cwd, args, options
-				);
-
-				break;
-			}
-
-			default: {
-
-				// FIXME(bh): better error handling? Perhaps override bad
-				// values earlier in `resolveDebugConfiguration`?
-				this.logOutput(
-					`Error: console: ${options.console} unknown`
-				);
-
-				break;
-			}
-
-		}
+		// This is the actual launch
+		await this.launchSession(args, session);
 
 		this.commandRunning = this.perlDebugger.title();
 
@@ -445,7 +754,7 @@ export class perlDebuggerConnection extends EventEmitter {
 			this.logDebug('error:', err);
 			this.logOutput( `Error`);
 			this.logOutput( err );
-			this.logOutput( `DUMP: ${this.perlDebugger.dump()}` );
+			this.logOutput( `DUMP: ${this.perlDebugger.title()}` );
 		});
 
 		// Handle program output
@@ -460,15 +769,20 @@ export class perlDebuggerConnection extends EventEmitter {
 			this.emit('perl-debug.close', code);
 		});
 
-		const data = await this.streamCatcher.launch(
-			this.perlDebugger.stdin,
-			this.perlDebugger.stderr
-		);
+		this.perlDebugger.on(
+			'perl-debug.attachable.listening',
+			data => {
+				this.emit(
+					'perl-debug.attachable.listening',
+					data
+				);
+		});
 
+		this.streamCatcher.removeAllListeners();
 		this.streamCatcher.on('perl-debug.streamcatcher.data', (...x) => {
 			this.emit(
 				'perl-debug.streamcatcher.data',
-				this.perlDebugger.dump(),
+				this.perlDebugger.title(),
 				...x
 			);
 		});
@@ -476,10 +790,34 @@ export class perlDebuggerConnection extends EventEmitter {
 		this.streamCatcher.on('perl-debug.streamcatcher.write', (...x) => {
 			this.emit(
 				'perl-debug.streamcatcher.write',
-				this.perlDebugger.dump(),
+				this.perlDebugger.title(),
 				...x
 			);
 		});
+
+		const data = await this.streamCatcher.launch(
+			this.perlDebugger.stdin,
+			this.perlDebugger.stderr
+		);
+
+		if (args.sessions !== 'single') {
+
+			this.develVscodeVersion = await this.getDevelVscodeVersion();
+
+			if (!this.develVscodeVersion) {
+
+				// Global watch expression that breaks into the debugger when
+				// the pid of the process changes; that can only happen right
+				// after a fork. This is needed to learn about new children
+				// when Devel::vscode is not loaded, see documentation there.
+
+				await this.streamCatcher.request(
+					'w $$'
+				);
+
+			}
+
+		}
 
 		// NOTE(bh): By default warnings should be shown in the terminal
 		// where the debugee's STDERR is shown. However, some versions of
@@ -516,7 +854,18 @@ export class perlDebuggerConnection extends EventEmitter {
 		// For local processes the pid is needed to send `SIGINT` to the
 		// debugger, which is supposed to break into the debugger and
 		// used to implement the `pauseRequest`.
-		this.debuggerPid = parseInt(await this.getExpressionValue('$$'));
+		this.debuggerPid = await this.getDebuggerPid();
+
+		this.programBasename = await this.getProgramBasename();
+		this.hostname = await this.getHostname();
+
+		// Try to find out if debug adapter and debugger run on the same
+		// machine and can signal each other even if the launchRequest is
+		// configured for remote debugging or an attach session, so users
+		// can pause and terminate processes through the user interface.
+		if (!this.canSignalDebugger) {
+			this.canSignalDebugger = await this.canSignalHeuristic();
+		}
 
 		try {
 			// Get the version just after
@@ -533,6 +882,8 @@ export class perlDebuggerConnection extends EventEmitter {
 			// inform the user of a missing dependency install of PadWalker
 		}
 
+		await this.installSubroutines();
+
 		return this.parseResponse(data);
 	}
 
@@ -546,8 +897,17 @@ export class perlDebuggerConnection extends EventEmitter {
 
 	async setFileContext(filename: string = this.filename) {
 		// xxx: Apparently perl DB wants unix path separators on windows so
-		// we enforce the unix separator
-		const cleanFilename = filename.replace(/\\/g, '/');
+		// we enforce the unix separator. Also remove relative path steps;
+		// if the debugger does not know about a file path literally, it
+		// will try to find a matching file through a regex match, so this
+		// increases the odds of finding the right file considerably. An
+		// underlying issue here is that we cannot always use resolved
+		// paths because we do not know what a relative path is relative
+		// to.
+		const cleanFilename = filename
+			.replace(/\\/g, '/')
+			.replace(/^[..\/\\]+/g, '');
+
 		// await this.request(`print STDERR "${cleanFilename}"`);
 		const res = await this.request(`f ${cleanFilename}`);
 		if (res.data.length) {
@@ -556,7 +916,6 @@ export class perlDebuggerConnection extends EventEmitter {
 				throw new Error(res.data[0]);
 			}
 		}
-		this.currentfile = cleanFilename;
 		return res;
 	}
 
@@ -756,10 +1115,10 @@ export class perlDebuggerConnection extends EventEmitter {
 	async getLoadedFiles(): Promise<string[]> {
 
 		const loadedFiles = await this.getExpressionValue(
-			'join "\t", grep { /^_</ } keys %main::'
+			'Devel::vscode::_unreportedSources() if defined &Devel::vscode::_unreportedSources'
 		);
 
-		return loadedFiles
+		return (loadedFiles || '')
 			.split(/\t/)
 			.filter(x => !/^_<\(eval \d+\)/.test(x))
 			.map(x => x.replace(/^_</, ''));
@@ -771,20 +1130,11 @@ export class perlDebuggerConnection extends EventEmitter {
 		// NOTE: `perlPath` must be a path known to Perl, there is
 		// no path translation at this point.
 
-		const escapedPath = perlPath.replace(
-			/([\\'])/g,
-			'\\$1'
-		);
+		const escapedPath = this.escapeForSingleQuotes(perlPath);
 
 		return decodeURIComponent(
-			// Perl stores file source code in `@{main::_<example.pl}`
-			// arrays. This retrieves the code in %xx-escaped form to
-			// ensure we only get a single line of output. This could
-			// perhaps be done generically for all expressions.
 			await this.getExpressionValue(
-				`sub { local $_ = join("", @{"main::_<@_"});\
-				s/([^a-zA-Z0-9\\x{80}-\\x{10FFFF}])/\
-				sprintf '%%%02x', ord "\$1"/ge; \$_ }->('${escapedPath}')`
+				`Devel::vscode::_getSourceCode('${escapedPath}')`
 			)
 		);
 
@@ -817,10 +1167,67 @@ export class perlDebuggerConnection extends EventEmitter {
 		}
 	}
 
+	async getDebuggerPid(): Promise<number> {
+		const res = await this.request(
+			'p $$'
+		);
+		return parseInt(res.data[0]);
+	}
+
+	async getHostname(): Promise<string> {
+		const res = await this.request(
+			'p sub { local $@; eval "require Sys::Hostname; Sys::Hostname::hostname()" }->()'
+		);
+		return res.data[0];
+	}
+
+	async getDevelVscodeVersion(): Promise<string | undefined> {
+		const res = await this.request(
+			'p sub { local $@; eval "\$Devel::vscode::VERSION" }->()'
+		);
+		const [ result = undefined ] = res.data;
+		return result;
+	}
+
+	async getProgramBasename(): Promise<string> {
+		const res = await this.request(
+			'p $0'
+		);
+		return (res.data[0] || '').replace(/.*[\/\\](.*)/, '$1');
+	}
+
+	public getThreadName(): string {
+		return `${this.programBasename} (pid ${
+			this.debuggerPid} on ${
+				this.hostname})`;
+	}
+
 	async resolveFilename(filename): Promise<string> {
 		const res = await this.request(`p $INC{"${filename}"};`);
 		const [ result = '' ] = res.data;
 		return result;
+	}
+
+	public escapeForSingleQuotes(unescaped: string): string {
+		return unescaped.replace(
+			/([\\'])/g,
+			'\\$1'
+		);
+	}
+
+	public terminateDebugger(): boolean {
+
+		if (this.canSignalDebugger) {
+
+			// Send SIGTERM to the `perl -d` process on the local system.
+			process.kill(this.debuggerPid, 'SIGTERM');
+			return true;
+
+		} else {
+
+			return false;
+		}
+
 	}
 
 	async destroy() {
