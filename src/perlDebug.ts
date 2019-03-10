@@ -342,11 +342,6 @@ export class PerlDebugSession extends LoggingDebugSession {
 
 
 
-	// protected disconnectRequest(response: DebugProtocol.DisconnectResponse, args: DebugProtocol.DisconnectArguments): void {
-	// 	response.success = false;
-	// 	this.sendResponse(response);
-	// }
-
 	private async checkSignaling(): Promise<boolean> {
 
 		if (!this.adapter.canSignalDebugger) {
@@ -383,6 +378,7 @@ export class PerlDebugSession extends LoggingDebugSession {
 
 		this.adapter.terminateDebugger()
 		await this.adapter.destroy();
+		this.sendResponse(response);
 
 	}
 
