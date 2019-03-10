@@ -381,6 +381,7 @@ export class PerlDebugSession extends LoggingDebugSession {
 		args: DebugProtocol.DisconnectArguments
 	): Promise<void> {
 
+		this.adapter.terminateDebugger()
 		await this.adapter.destroy();
 
 	}
