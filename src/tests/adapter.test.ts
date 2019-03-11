@@ -8,7 +8,7 @@ import * as Path from 'path';
 import * as fs from 'fs';
 import {DebugClient} from 'vscode-debugadapter-testsupport';
 import {DebugProtocol} from 'vscode-debugprotocol';
-
+import { Subject } from 'await-notify';
 
 describe('Perl debug Adapter', () => {
 
@@ -202,14 +202,17 @@ describe('Perl debug Adapter', () => {
 
 		it('should stop on a function', async () => {
 
-			const PROGRAM = FILE_FAST_TEST_PL;
+			dc.on('perl-debug.streamcatcher.data', (x) => {
+				console.log(x);
+			});
 
-			await dc.launch(Configuration({
-				program: PROGRAM,
-				stopOnEntry: true
-			}));
-
-			await dc.waitForEvent('stopped');
+			await Promise.all([
+				dc.launch(Configuration({
+					program: FILE_FAST_TEST_PL,
+					stopOnEntry: true
+				})),
+				dc.waitForEvent('stopped'),
+			]);
 
 			await dc.setFunctionBreakpointsRequest({
 				breakpoints: [{
@@ -217,7 +220,11 @@ describe('Perl debug Adapter', () => {
 				}]
 			});
 
-			dc.waitForEvent('stopped').then(async (x) => {
+			const hitFunctionBreakpoint = new Subject();
+
+			dc.on('stopped', async (x) => {
+
+				hitFunctionBreakpoint.notify();
 
 				const st = await dc.stackTraceRequest({
 					threadId: undefined
@@ -233,28 +240,26 @@ describe('Perl debug Adapter', () => {
 					}).length > 0
 				);
 
-				// Clear breakpoints
-				await dc.setFunctionBreakpointsRequest({
-					breakpoints: []
-				});
-
 				// Should now run to completion
 				await Promise.all([
+					// Clear breakpoints
+					dc.setFunctionBreakpointsRequest({
+						breakpoints: []
+					}),
 					dc.continueRequest({
 						threadId: undefined
 					}),
 					dc.waitForEvent('terminated')
 				]);
 
-			}).catch(x => {
-
-				assert.fail('did not break on function');
-
 			});
 
-			await dc.continueRequest({
-				threadId: undefined
-			});
+			await Promise.all([
+				dc.continueRequest({
+					threadId: undefined
+				}),
+				hitFunctionBreakpoint
+			]);
 
 		});
 	});

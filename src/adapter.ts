@@ -176,10 +176,6 @@ export class perlDebuggerConnection extends EventEmitter {
 			special: [],
 		};
 
-		if (res.orgData.filter(x => /vscode:/.test(x)).length > 0) {
-			let abc = 123;
-		}
-
 		res.orgData.forEach((line, i) => {
 			if (i === 0) {
 				// Command line
