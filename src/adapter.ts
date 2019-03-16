@@ -5,7 +5,6 @@ import * as path from 'path';
 import {spawn} from 'child_process';
 import {StreamCatcher} from './streamCatcher';
 import * as RX from './regExp';
-import variableParser, { ParsedVariable, ParsedVariableScope } from './variableParser';
 import { DebugSession } from './session';
 
 import { LocalSession } from './localSession';
@@ -44,11 +43,12 @@ interface Variable {
 }
 
 interface StackFrame {
-	v: string,
-	name: string,
 	filename: string,
 	caller: string,
-	ln: number,
+	line: number,
+	column?: number,
+	endLine?: number,
+	endColumn?: number,
 }
 
 export interface RequestResponse {
@@ -634,6 +634,31 @@ export class PerlDebuggerConnection extends EventEmitter {
 		return true;
 	}
 
+	private getDebuggerFunctionsPath() {
+
+		let plPath = (
+			path.dirname(process.argv0)
+			+
+			'/../debugger-functions.pl'
+		);
+
+		// When `EMBED_DEBUG_ADAPTER` in extension.ts is set, `argv0`
+		// points to vscode itself instead of our `debugAdapter.ts`.
+
+		// FIXME(bh): Only alternative to get the path to this file,
+		// or the extension directory in general, during debugging and
+		// when properly installed, seems to be getting a path from a
+		// stack trace, which is not very nice and not very portable.
+
+		if (!fs.existsSync(plPath)) {
+			plPath = new Error().stack.match(/(\/\S+):\d+:\d+/)[1];
+			plPath = path.dirname(plPath) + '/../debugger-functions.pl';
+		}
+
+		return plPath;
+
+	}
+
 	private async installSubroutines() {
 
 		// https://metacpan.org/pod/Devel::vscode register a namespace
@@ -645,73 +670,19 @@ export class PerlDebuggerConnection extends EventEmitter {
 		// features. For these, it is not necessary for users of the
 		// extension to install or otherwise load `Devel::vscode`.
 
-		const singleLine = (strings, ...args) => {
-			return strings.join('').replace(/\n/g, " ");
-		};
+		const path = this.getDebuggerFunctionsPath();
+		const contents = fs.readFileSync(path).toString();
+		const escaped = this.escapeForDoubleQuotes(contents);
 
-		const unreportedSources = singleLine`
-			sub Devel::vscode::_unreportedSources {
-				return join "\t", grep {
-					my $old = $Devel::vscode::_reportedSources{$_};
-					$Devel::vscode::_reportedSources{$_} = $$;
-					not defined $old or $old ne $$
-				} grep { /^_<[^(]/ } keys %main::
-			}
-		`;
+		await this.request(
+			`eval "${escaped}" unless $Devel::vscode::DEBUGGER_FUNCTIONS`
+		);
 
-		// Perl stores file source code in `@{main::_<example.pl}`
-		// arrays. This retrieves the code in %xx-escaped form to
-		// ensure we only get a single line of output.
-		const getSourceCode = singleLine`
-			sub Devel::vscode::_getSourceCode {
-				local $_ = join("", @{"main::_<@_"});
-				s/([^a-zA-Z0-9\\x{80}-\\x{10FFFF}])/
-					sprintf '%%%02x', ord "$1"/ge;
-				return $_
-			}
-		`;
+		// Clear after exec()
+		await this.request(
+			`%Devel::vscode::_reported_sources = ()`
+		);
 
-		// As perl `perldebuts`, "After each required file is compiled,
-		// but before it is executed, DB::postponed(*{"_<$filename"}) is
-		// called if the subroutine DB::postponed exists." and "After
-		// each subroutine subname is compiled, the existence of
-		// $DB::postponed{subname} is checked. If this key exists,
-		// DB::postponed(subname) is called if the DB::postponed
-		// subroutine also exists."
-		//
-		// Overriding the function with a thin wrapper like this would
-		// give us a chance to report any newly loaded source directly
-		// instead of repeatedly polling for it, which could be used to
-		// make breakpoints more reliable. Same probably for function
-		// breakpoints if they are registered as explained above.
-		//
-		// Note that when a Perl process is `fork`ed, we may already have
-		// wrapped the original function and must avoid doing it again.
-		// This is not actually used at the moment. We cannot usefully
-		// break into the debugger here, since there is no good way to
-		// resume exactly as the user originally intended. There would
-		// have to be a way to process such messages asynchronously as
-		// they arrive.
-
-		const breakOnLoad = singleLine`
-			package DB;
-			*DB::postponed = sub {
-				my ($old_postponed) = @_;
-				$Devel::vscode::_overrodePostponed = 1;
-				return sub {
-					if ('GLOB' eq ref(\\$_[0]) and $_[0] =~ /<(.*)\s*$/s) {
-						print { $DB::OUT } "vscode: new loaded source $1\\n";
-					} else {
-						print { $DB::OUT } "vscode: new subroutine $_[0]\\n";
-					}
-					&{$old_postponed};
-				};
-			}->(\\&DB::postponed) unless $Devel::vscode::_overrodePostponed;
-		`;
-
-		await this.request(unreportedSources);
-		await this.request(getSourceCode);
-		await this.request(breakOnLoad);
 	}
 
 	async launchRequest(
@@ -849,6 +820,8 @@ export class PerlDebuggerConnection extends EventEmitter {
 		// Initial data from debugger
 		this.logData('', data.slice(0, data.length-2));
 
+		await this.installSubroutines();
+
 		// While `runInTerminal` is supposed to give us the pid of the
 		// spawned `perl -d` process, that does not work very well as of
 		// 2019-02. Instead we ask Perl for the host process id. Note
@@ -879,17 +852,10 @@ export class PerlDebuggerConnection extends EventEmitter {
 
 		try {
 			this.padwalkerVersion = await this.getPadwalkerVersion();
+			this.scopeBaseLevel = await this.getVariableBaseLevel();
 		} catch(ignore) {
 			// xxx: Ignore errors - it should not break anything, this is used to
 			// inform the user of a missing dependency install of PadWalker
-		}
-
-		if (this.padwalkerVersion.length > 0) {
-			try {
-				this.scopeBaseLevel = await this.getVariableBaseLevel();
-			} catch (ignore) {
-				// ignore the error
-			}
 		}
 
 		await this.installSubroutines();
@@ -986,115 +952,103 @@ export class PerlDebuggerConnection extends EventEmitter {
 		return await this.request('R');
 	}
 
-	async getVariableReference(name: string): Promise<string> {
-		const res = await this.request(`p \\${name}`);
-		return res.data[0];
+	async getLexicalVariables(frameId: number): Promise<any[]> {
+		const data = await this.getExpressionValue(
+			`Devel::vscode::_get_lexical_symbols_json(${frameId})`
+		);
+
+		return JSON.parse(data);
+	}
+
+	async getPackageVariables(pkg: string): Promise<any[]> {
+
+		const data = await this.getExpressionValue(
+			`Devel::vscode::_get_package_symbols_json('${
+				this.escapeForSingleQuotes(pkg)
+			}')`
+		);
+
+		return JSON.parse(data);
+	}
+
+	async getExprVariables(expr: string): Promise<any[]> {
+
+		const data = await this.getExpressionValue(
+			`Devel::vscode::_get_element_symbols_json(${expr})`
+		);
+
+		return JSON.parse(data);
+
 	}
 
 	async getExpressionValue(expression: string): Promise<string> {
-		const res = await this.request(`p ${expression}`);
+
+		// NOTE(bh): It is important to force a string context here,
+		// otherwise we might get multiple values from the expression,
+		// or in case of overloaded objects, might get a non-string
+		// value. It might then make sense to have other methods that
+		// force different contexts.
+		//
+		// Users should not be able to notice what we do here, so we
+		// temporarily disable the debugger for the duration of the
+		// request. When users specifically ask to break inside the
+		// debugger, like with `w $DB::sub` or `w $DB::package`, they
+		// might still intercept us here; that is probbaly ultimately
+		// a problem in `perl5db.pl` which is also affected.
+
+		const res = await this.request(
+			`; { local *DB::DB = sub {}; print { \$DB::OUT } ( '' . (${
+				expression
+			}) ) }`
+		);
+
 		return res.data.pop();
 	}
 
-	/**
-	 * Prints out a nice indent formatted list of variables with
-	 * array references resolved.
-	 */
-	async requestVariableOutput(level: number) {
-		const variables: Variable[] = [];
-		const res = await this.request(`y ${level + this.scopeBaseLevel - 1}`);
-		const result = [];
-
-		if (/^Not nested deeply enough/.test(res.data[0])) {
-			return [];
-		}
-
-		if (RX.codeErrorMissingModule.test(res.data[0])) {
-			throw new Error(res.data[0]);
-		}
-
-		// Resolve all Array references
-		for (let i = 0; i < res.data.length; i++) {
-			const line = res.data[i];
-			if (/\($/.test(line)) {
-				const name = line.split(' = ')[0];
-				const reference = await this.getVariableReference(name);
-				result.push(`${name} = ${reference}`);
-			} else if (line !== ')') {
-				result.push(line);
-			}
-		}
-
-		return result;
-	}
-
-	async getVariableList(level: number, scopeName?: string): Promise<ParsedVariableScope> {
-		const variableOutput = await this.requestVariableOutput(level);
-		//console.log('RESOLVED:');
-		//console.log(variableOutput);
-		return variableParser(variableOutput, scopeName);
-	}
-
-	async variableList(scopes): Promise<ParsedVariableScope> {
-		// If padwalker not found then tell the user via the variable inspection
-		// instead of being empty.
-		if (!this.padwalkerVersion) {
-			return {
-				local_0: [{
-					name: 'PadWalker',
-					value: 'Not installed',
-					type: 'string',
-					variablesReference: '0',
-				}],
-			};
-		}
-
-		const keys = Object.keys(scopes);
-		let result: ParsedVariableScope = {};
-
-		for (let i = 0; i < keys.length; i++) {
-			const name = keys[i];
-			const level = scopes[name];
-			Object.assign(result, await this.getVariableList(level, name));
-		}
-		return result;
-	}
-
 	async getStackTrace(): Promise<StackFrame[]> {
-		const res = await this.request('T');
-		const result: StackFrame[] = [];
 
-		res.data.forEach((line, i) => {
-			// > @ = DB::DB called from file 'lib/Module2.pm' line 5
-			// > . = Module2::test2() called from file 'test.pl' line 12
-			const m = line.match(/^(\S+) = (\S+) called from file \'(\S+)\' line ([0-9]+)$/);
+		const data = await this.getExpressionValue(
+			`Devel::vscode::_get_callers_json(0)`
+		);
 
-			if (m !== null) {
-				const [, v, caller, name, ln] = m;
-				const filename = absoluteFilename(this.rootPath, name);
-				result.push({
-					v,
-					name,
-					filename,
-					caller,
-					ln: +ln,
-				});
-			}
+		const frames = JSON.parse(data).map(item => {
+
+			const [
+				pkg, filename, line, sub, hasargs, wantarray,
+				evaltext, is_require, hints, bitmask, hinthash
+			] = item;
+
+			const frame: StackFrame = {
+				line: parseInt(line, 10),
+				caller: sub,
+				filename: filename,
+			};
+
+			return frame;
 
 		});
 
-		return result;
+		frames.forEach((item, ix) => {
+			item.caller = frames[ix+1]
+				? frames[ix+1].caller
+				: '(anonymous code)';
+		});
+
+		return frames;
+
 	}
 
 	async getLoadedFiles(): Promise<string[]> {
 
 		const loadedFiles = await this.getExpressionValue(
-			'Devel::vscode::_unreportedSources() if defined &Devel::vscode::_unreportedSources'
+			`defined &Devel::vscode::_get_unreported_sources_json ${
+				'' // just for a line wrap
+			} ? Devel::vscode::_get_unreported_sources_json() : "[]"`
 		);
 
-		return (loadedFiles || '')
-			.split(/\t/)
+		return JSON.parse(loadedFiles || '[]')
 			.filter(x => !/^_<\(eval \d+\)/.test(x))
+			.filter(x => x.length > 0)
 			.map(x => x.replace(/^_</, ''));
 
 	}
@@ -1104,13 +1058,15 @@ export class PerlDebuggerConnection extends EventEmitter {
 		// NOTE: `perlPath` must be a path known to Perl, there is
 		// no path translation at this point.
 
-		const escapedPath = this.escapeForSingleQuotes(perlPath);
-
-		return decodeURIComponent(
-			await this.getExpressionValue(
-				`Devel::vscode::_getSourceCode('${escapedPath}')`
-			)
+		const escapedPath = this.escapeForSingleQuotes(
+			perlPath
 		);
+
+		return JSON.parse(
+			await this.getExpressionValue(
+				`Devel::vscode::_get_source_code_json('${escapedPath}')`
+			)
+		).join('');
 
 	}
 
@@ -1132,14 +1088,12 @@ export class PerlDebuggerConnection extends EventEmitter {
 	}
 
 	async getPadwalkerVersion(): Promise<string> {
-		const res = await this.request(
-			'p sub { local $@; eval "require PadWalker; PadWalker->VERSION()" }->()'
+		const version = await this.getExpressionValue(
+			'PadWalker->VERSION()'
 		);
-		const version = res.data[0];
 		if (/^[0-9]+\.?([0-9]?)+$/.test(version)) {
 			return version;
 		}
-		return JSON.stringify(res.data);
 	}
 
 	async getVariableBaseLevel() {
@@ -1157,32 +1111,28 @@ export class PerlDebuggerConnection extends EventEmitter {
 	}
 
 	async getDebuggerPid(): Promise<number> {
-		const res = await this.request(
-			'p $$'
-		);
-		return parseInt(res.data[0]);
+		return parseInt(await this.getExpressionValue(
+			'$$'
+		), 10);
 	}
 
 	async getHostname(): Promise<string> {
-		const res = await this.request(
-			'p sub { local $@; eval "require Sys::Hostname; Sys::Hostname::hostname()" }->()'
+		return await this.getExpressionValue(
+			'Sys::Hostname::hostname()'
 		);
-		return res.data[0];
 	}
 
 	async getDevelVscodeVersion(): Promise<string | undefined> {
-		const res = await this.request(
-			'p sub { local $@; eval "\$Devel::vscode::VERSION" }->()'
+		return await this.getExpressionValue(
+			'$Devel::vscode::VERSION'
 		);
-		const [ result = undefined ] = res.data;
-		return result;
 	}
 
 	async getProgramBasename(): Promise<string> {
-		const res = await this.request(
-			'p $0'
+		const name = await this.getExpressionValue(
+			'$0'
 		);
-		return (res.data[0] || '').replace(/.*[\/\\](.*)/, '$1');
+		return (name || '').replace(/.*[\/\\](.*)/, '$1');
 	}
 
 	public getThreadName(): string {
@@ -1192,9 +1142,9 @@ export class PerlDebuggerConnection extends EventEmitter {
 	}
 
 	async resolveFilename(filename): Promise<string> {
-		const res = await this.request(`p $INC{"${filename}"};`);
-		const [ result = '' ] = res.data;
-		return result;
+		return await this.getExpressionValue(
+			`$INC{"${this.escapeForDoubleQuotes(filename)}"};
+		`);
 	}
 
 	public escapeForSingleQuotes(unescaped: string): string {
@@ -1203,6 +1153,14 @@ export class PerlDebuggerConnection extends EventEmitter {
 			'\\$1'
 		);
 	}
+
+	public escapeForDoubleQuotes(unescaped: string): string {
+		return unescaped.replace(
+			/([^a-zA-Z0-9])/ug,
+			(whole, elem) => `\\x{${elem.codePointAt(0).toString(16)}}`
+		);
+	}
+
 
 	public terminateDebugger(): boolean {
 
