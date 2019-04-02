@@ -18,6 +18,8 @@ Details are in:
 
 #### The user running debugger
 
+<!-- FIXME(bh): this is outdated -->
+
 1. The extension starts up in a separate process from vscode, a `debug server`
 2. The `debug server` will then spawn `perl5db` - somthing like `perl -d` *(unless overwritten by user settings)*
 
@@ -37,6 +39,14 @@ The [perlDebug.ts](src/perlDebug.ts) is the layer wiring up the perl5db `adapter
 *There are some gotchas around how `filenames` and `paths` are handled in the different places - actually mostly between perl and node - and mostly around absolute/relative paths and system path separators.*
 
 *Theres also some inconsistencies in how the vs code debug api handles variables/breakpoints vs watchers etc. making somethings hard to keep track of - things we might workaround later on*
+
+#### Running extension.ts and perlDebug.ts in the same process
+
+In `extension.ts` you can set `EMBED_DEBUG_ADAPTER` to `true` during
+development. Visual Studio Code will then run the extension and any
+instance of the debug adapter in the same process, so you can have
+breakpoints in `extension.ts` and other parts of the code that work
+during the same session. This option is not suitable for releases.
 
 #### Test coverage
 

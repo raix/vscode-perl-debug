@@ -11,6 +11,8 @@ A debugger for perl in vs code.
 ### Features
 
 * Breakpoints *(continue, step over, step in, step out)*
+* Function breakpoints *(for now functions have to be loaded at launch)*
+* Process control *(pause, resume, restart)*
 * Stacktrace
 * Variable inspection *(support for objects, arrays, strings, numbers and boolean)*
 * Variable watching *(for now we don't create actual watch breakpoints - figuring out how to maintain t)*
@@ -18,6 +20,7 @@ A debugger for perl in vs code.
 * Debug console for writing expressions *(write perl expressions in the debug console)*
 * Variable values on hover in code
 * Loaded modules view *(including source code retrieval from remote)*
+* Multi-session/multi-target debugging *(including support for `fork` where available)*
 
 ### Settings
 
@@ -30,6 +33,8 @@ A debugger for perl in vs code.
 * `port` Number for port to listen for remote debuggers to connect to. *(Used only for remote debugging)*
 * `console` String to identify where to launch the debuggee
 * `debugRaw` Boolean to enable logging of raw I/O with the Perl debugger in an output channel
+* `debugLog` Boolean to enable logging of other debug messages in an output channel
+* `sessions` String to configure how child processes are handled
 
 ### Setup notes
 
@@ -60,7 +65,9 @@ A standard `launch.json` will resemble the following (on Windows, *nix distros w
 
 ### Remote debugger
 
-When setting the `port` attribute in `launch.json` the vs code debug extension will start a debug server for the remote perl debug instance to connect to.
+When setting the `console` attribute in `launch.json` to `remote` the
+vs code debug extension will start a debug server for the remote perl
+debug instance to connect to.
 
 eg.:
 ```bash
@@ -68,6 +75,48 @@ eg.:
  $ PERLDB_OPTS="RemotePort=localhost:5000" perl -d test.pl
 ```
 *`localhost` should be replaced by the ip address*
+
+### Handling multiple processes
+
+Visual Studio Code supports running multiple debugging sessions in
+parallel, if you have multiple configurations in your `launch.json`,
+you can start several of them simultaneously.
+
+The extension can also automatically start additional debug sessions
+when a Perl process `fork`s or if multiple debuggers try to connect
+to the same `port`. This behaviour needs to be enabled with the
+`sessions` option. To illustrate, with `launch.json` like
+
+```json
+...
+  "sessions": "watch",
+  "console": "remote",
+  "port": 5000,
+...
+```
+
+Then you can start a debug session in vscode and launch:
+
+```bash
+PERL5OPT=-d PERLDB_OPTS='RemotePort=localhost:5000' prove -l
+```
+
+All the Perl processes launched in one way or another by `prove` will
+then connect to the extension. In `watch` mode execution of dependent
+processes will continue immediately, in `break` mode they will stop
+on entry (like with `stopOnEntry` for the first or main process).
+
+When using this feature, it is recommended to use the debugger module
+[Devel::vscode](https://metacpan.org/pod/Devel::vscode). It overrides
+the `fork` function so that the Perl debugger connects to the
+extension right after `fork` returns in the child. When the module is
+not loaded, the extension creates a global watch expression `w $$` to
+the same effect, but that puts the debugger in trace mode, wich can
+slow down debugging considerably.
+
+When you start the perl process you want to debug, instead of `-d`,
+specify `-d:vscode`. If the extension starts the Perl process, set
+`execArgs: ["-d:vscode"]` in `launch.json`.
 
 ### Stability
 
@@ -102,7 +151,11 @@ If you want to help test / debug read [DEBUGGING.md](DEBUGGING.md)
 
 * Watching variables doesn't create actual expression watchers yet - need more api for actually maintaining the list of expressions to watch. I might be able to do a workaround for now.
 * Variable values on hover doesn't work all the time due to the lack of info, eg. `$obj->{ownObj}->{ownFoo}` hovering over `$obj` will work fine - but the children are not parsed correctly - to solve this we might need to parse the line of code.
-* Function breakpoints not working / added - need to figure out if possible
+
+### Problems with `perl5db.pl` affecting this extension
+
+* [#133875: warnLevel=0 is not the default](https://rt.perl.org/Ticket/Display.html?id=133875)
+* [#130361: debugger does not stop at postponed breakpoints](https://rt.perl.org/Ticket/Display.html?id=130361)
 
 ### Credits
 

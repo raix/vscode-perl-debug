@@ -4,6 +4,8 @@
  * it takes requests and generates a response from the streams
  */
 
+ import * as fs from 'fs';
+
 import {Writable, Readable} from 'stream';
 import * as RX from './regExp';
 import { EventEmitter } from 'events';

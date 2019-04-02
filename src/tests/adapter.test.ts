@@ -8,11 +8,11 @@ import * as Path from 'path';
 import * as fs from 'fs';
 import {DebugClient} from 'vscode-debugadapter-testsupport';
 import {DebugProtocol} from 'vscode-debugprotocol';
-
+import { Subject } from 'await-notify';
 
 describe('Perl debug Adapter', () => {
 
-	const DEBUG_ADAPTER = './out/perlDebug.js';
+	const DEBUG_ADAPTER = './out/debugAdapter.js';
 
 	const PROJECT_ROOT = Path.dirname(Path.dirname(__dirname));
 	const DATA_ROOT = Path.join(PROJECT_ROOT, 'src', 'tests', 'data');
@@ -130,7 +130,7 @@ describe('Perl debug Adapter', () => {
 			]);
 		});
 
-		it.skip('should stop on entry', async () => {
+		it('should stop on entry', async () => {
 
 			const PROGRAM = FILE_FAST_TEST_PL;
 
@@ -160,7 +160,7 @@ describe('Perl debug Adapter', () => {
 			// and adapter run in the same process?
 
 			await dc.launch(Configuration({
-				program: PROGRAM,
+				program: FILE_LONG_RUNNING_PL,
 				stopOnEntry: true
 			}));
 
@@ -194,6 +194,72 @@ describe('Perl debug Adapter', () => {
 				parseInt(result.body.result) > 3,
 				'must have gone at least twice through the loop'
 			);
+
+		});
+	});
+
+	describe('setFunctionBreakpoints', () => {
+
+		it('should stop on a function', async () => {
+
+			dc.on('perl-debug.streamcatcher.data', (x) => {
+				console.log(x);
+			});
+
+			await Promise.all([
+				dc.launch(Configuration({
+					program: FILE_FAST_TEST_PL,
+					stopOnEntry: true
+				})),
+				dc.waitForEvent('stopped'),
+			]);
+
+			await dc.setFunctionBreakpointsRequest({
+				breakpoints: [{
+					name: 'Module::test'
+				}]
+			});
+
+			const hitFunctionBreakpoint = new Subject();
+
+			dc.on('stopped', async (x) => {
+
+				hitFunctionBreakpoint.notify();
+
+				const st = await dc.stackTraceRequest({
+					threadId: undefined
+				});
+
+				assert.ok(
+					st.body.stackFrames.filter(x => {
+						return (
+							x.source.path.endsWith('Module.pm')
+							&&
+							x.line === 4
+						);
+					}).length > 0
+				);
+
+				// Should now run to completion
+				await Promise.all([
+					// Clear breakpoints
+					dc.setFunctionBreakpointsRequest({
+						breakpoints: []
+					}),
+					dc.continueRequest({
+						threadId: undefined
+					}),
+					dc.waitForEvent('terminated')
+				]);
+
+			});
+
+			await Promise.all([
+				dc.continueRequest({
+					threadId: undefined
+				}),
+				hitFunctionBreakpoint
+			]);
 
 		});
 	});

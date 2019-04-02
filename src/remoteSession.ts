@@ -2,8 +2,9 @@ import * as net from 'net';
 import {spawn} from 'child_process';
 import { Readable, Writable } from 'stream';
 import { EventEmitter } from 'events';
-import { DebugSession, LaunchOptions } from './session';
+import { DebugSession } from './session';
 import { debuggerSignature } from './regExp';
+import { Attachable } from './attachable';
 
 export class RemoteSession extends EventEmitter implements DebugSession {
 	public stdin: Writable;
@@ -11,14 +12,19 @@ export class RemoteSession extends EventEmitter implements DebugSession {
 	public stderr: Readable;
 	public kill: Function;
 	public title: Function;
-	public dump: Function;
 	public port: Number | null;
 
-	constructor(port: number, bindAddress: string = "0.0.0.0") {
+	constructor(
+		port: number,
+		bindAddress: string = "0.0.0.0",
+		sessions: string = 'single'
+	) {
 		super();
 
 		// Keep track of the chat clients
 		let client: net.Socket;
+
+		const attachables: Attachable[] = [];
 
 		this.stdin = new Writable({
 			write(chunk, encoding, callback) {
@@ -48,9 +54,49 @@ export class RemoteSession extends EventEmitter implements DebugSession {
 				client = socket;
 				this.stdout.push(`Remote debugger at "${name}" connected at port ${port}.`);
 			} else {
-				// Already have a client connected, lets close and notify user
-				this.stdout.push(`Warning: Additional remote client tried to connect "${name}".`);
-				socket.destroy('Remote debugger already connected!');
+
+				if (sessions && sessions !== 'single') {
+
+					// When a debuggee calls `fork()` the Perl debugger will
+					// fork the debuggee and try to connect to the same port
+					// the parent was connected to. While vscode does support
+					// multi-target/multi-process debugging, it needs a single
+					// debug adapter process for each debuggee process. And it
+					// is not possible to pass sockets past process boundaries.
+
+					// So we accept the connection here and offer a proxy to it
+					// to the perl-debug extension, informing it that a new one
+					// is available through a custom event. The `Attachable` is
+					// the proxy. The extension receives the custom event and
+					// starts a new debug session, which will then connect to
+					// the proxy in order to interact with the debugger. There
+					// can be proxy chains if a child forks into grandchildren.
+
+					this.stdout.push(`Attachable debugger at "${name}" connected at port ${port}.`);
+
+					const attachable = new Attachable(socket);
+
+					attachables.push(attachable);
+
+					attachable.on('listening', address => {
+						this.emit('perl-debug.attachable.listening', {
+							src: {
+								address: socket.remoteAddress,
+								port: socket.remotePort,
+							},
+							via: socket.address(),
+							dst: address,
+						});
+					});
+
+					return;
+
+				} else {
+					// Already have a client connected, lets close and notify user
+					this.stdout.push(`Warning: Additional remote client tried to connect "${name}".`);
+					socket.destroy('Remote debugger already connected!');
+				}
+
 			}
 
 			socket.on('data', data => {
@@ -96,6 +142,11 @@ export class RemoteSession extends EventEmitter implements DebugSession {
 		});
 
 		this.kill = () => {
+
+			// FIXME(bh): Do we actually want to kill the attachables
+			// when the main session is going away?
+			attachables.forEach(x => x.kill());
+
 			server.removeAllListeners();
 			this.removeAllListeners();
 			this.stdin.removeAllListeners();
@@ -109,9 +160,14 @@ export class RemoteSession extends EventEmitter implements DebugSession {
 
 			server.close();
 		};
-		this.title = () => `Running debug server for remote session to connect on port "${port}"`;
-		this.dump = () => `debug server port ${port}`;
-		this.dump = () => `${server.address().address}:${server.address().port} serving ${client.remoteAddress}:${client.remotePort}`;
+		this.title = () => {
+			if (server && client) {
+				return `${server.address().address}:${server.address().port
+					} serving ${client.remoteAddress}:${client.remotePort}`;
+			} else {
+				return "Inactive RemoteSession";
+			}
+		};
 
 	}
 }

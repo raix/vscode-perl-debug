@@ -1,7 +1,8 @@
-import {spawn} from 'child_process';
+import { spawn } from 'child_process';
 import { Readable, Writable } from 'stream';
 import { EventEmitter } from 'events';
-import { DebugSession, LaunchOptions } from './session';
+import { DebugSession } from './session';
+import { LaunchRequestArguments } from './perlDebug';
 
 export class LocalSession extends EventEmitter implements DebugSession {
 	public stdin: Writable;
@@ -9,26 +10,28 @@ export class LocalSession extends EventEmitter implements DebugSession {
 	public stderr: Readable;
 	public kill: Function;
 	public title: Function;
-	public dump: Function;
 	public port: Number | null;
 
-	constructor(filename: string, cwd: string, args: string[] = [], options: LaunchOptions = {}) {
+	constructor(launchArgs: LaunchRequestArguments) {
 
 		super();
 
-		const perlCommand = options.exec || 'perl';
-		const programArguments = options.args || [];
-
-		const commandArgs = [].concat(args, [ '-d', filename /*, '-emacs'*/], programArguments);
+		const perlCommand = launchArgs.exec || 'perl';
+		const commandArgs = [
+			...( launchArgs.execArgs || [] ),
+			'-d',
+			launchArgs.program,
+			...( launchArgs.args || [] )
+		];
 
 		const spawnOptions = {
 			detached: true,
-			cwd: cwd || undefined,
+			cwd: launchArgs.root || undefined,
 			env: {
 				COLUMNS: 80,
 				LINES: 25,
 				TERM: 'dumb',
-				...options.env,
+				...launchArgs.env,
 			},
 		};
 
@@ -40,7 +43,6 @@ export class LocalSession extends EventEmitter implements DebugSession {
 			this.removeAllListeners();
 			session.kill();
 		};
-		this.title = () => `${perlCommand} ${commandArgs.join(' ')}`;
-		this.dump = () => `spawn(${perlCommand}, ${JSON.stringify(commandArgs)}, ${JSON.stringify(spawnOptions)});`;
+		this.title = () => `spawn(${perlCommand}, ${JSON.stringify(commandArgs)}, ${JSON.stringify(spawnOptions)});`;
 	}
 }

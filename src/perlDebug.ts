@@ -13,7 +13,7 @@ import {readFileSync} from 'fs';
 import {basename, dirname, join} from 'path';
 import {spawn, ChildProcess} from 'child_process';
 const { Subject } = require('await-notify');
-import { perlDebuggerConnection } from './adapter';
+import { perlDebuggerConnection, RequestResponse } from './adapter';
 import { variableType, ParsedVariable, ParsedVariableScope, resolveVariable } from './variableParser';
 
 /**
@@ -44,6 +44,8 @@ export interface LaunchRequestArguments extends DebugProtocol.LaunchRequestArgum
 	console?: string,
 	/** Log raw I/O with debugger in output channel */
 	debugRaw?: boolean,
+	/** How to handle forked children or multiple connections */
+	sessions?: string,
 }
 
 export class PerlDebugSession extends LoggingDebugSession {
@@ -51,17 +53,10 @@ export class PerlDebugSession extends LoggingDebugSession {
 
 	private _breakpointId = 1000;
 
-	// This is the next line that will be 'executed'
-	private __currentLine = 0;
-	private get _currentLine() : number {
-		return this.__currentLine;
-    }
-	private set _currentLine(line: number) {
-		this.__currentLine = line;
-	}
-
 	private _breakPoints = new Map<string, DebugProtocol.Breakpoint[]>();
-	private _functionBreakPoints: string[] = [];
+
+	private _functionBreakPoints: Map<string, DebugProtocol.Breakpoint>
+		= new Map<string, DebugProtocol.Breakpoint>();
 
 	private _loadedSources = new Map<string, Source>();
 
@@ -69,12 +64,12 @@ export class PerlDebugSession extends LoggingDebugSession {
 
 	public dcSupportsRunInTerminal: boolean = false;
 
-	private perlDebugger: perlDebuggerConnection;
+	private adapter: perlDebuggerConnection;
 
 	public constructor() {
 		super('perl_debugger.log');
 
-		this.perlDebugger = new perlDebuggerConnection();
+		this.adapter = new perlDebuggerConnection();
 
 		this.setDebuggerLinesStartAt1(false);
 		this.setDebuggerColumnsStartAt1(false);
@@ -96,11 +91,11 @@ export class PerlDebugSession extends LoggingDebugSession {
 
 		this.dcSupportsRunInTerminal = !!args.supportsRunInTerminalRequest;
 
-		this.perlDebugger.on('perl-debug.output', (text) => {
+		this.adapter.on('perl-debug.output', (text) => {
 			this.sendEvent(new OutputEvent(`${text}\n`));
 		});
 
-		this.perlDebugger.on('perl-debug.exception', (res) => {
+		this.adapter.on('perl-debug.exception', (res) => {
 			// xxx: for now I need more info, code to go away...
 			const [ error ] = res.errors;
 			this.sendEvent(
@@ -108,25 +103,49 @@ export class PerlDebugSession extends LoggingDebugSession {
 			);
 		});
 
-		this.perlDebugger.on('perl-debug.termination', (x) => {
+		this.adapter.on('perl-debug.termination', (x) => {
 			this.sendEvent(new TerminatedEvent());
 		});
 
-		this.perlDebugger.on('perl-debug.close', (x) => {
+		this.adapter.on('perl-debug.stopped', (x) => {
+			// FIXME(bh): `breakpoint` is not always correct here.
+			this.sendEvent(new StoppedEvent("breakpoint", PerlDebugSession.THREAD_ID));
+		});
+
+		this.adapter.on('perl-debug.close', (x) => {
 			this.sendEvent(new TerminatedEvent());
 		});
 
-		this.perlDebugger.on('perl-debug.debug', (x) => {
+		this.adapter.on('perl-debug.debug', (...x) => {
+			// FIXME: needs to check launch options
 			this.sendEvent(new Event('perl-debug.debug', x));
 		});
 
-		this.perlDebugger.initializeRequest()
-			.then(() => {
-				// since this debug adapter can accept configuration requests like 'setBreakpoint' at any time,
-				// we request them early by sending an 'initializeRequest' to the frontend.
-				// The frontend will end the configuration sequence by calling 'configurationDone' request.
-				this.sendEvent(new InitializedEvent());
+		this.adapter.on('perl-debug.new-source', () => {
 
+			// FIXME(bh): There is probably a better way to re-use the code
+			// in that function that does not require setting up a malformed
+			// object here, but this seems good enough for the moment.
+			this.loadedSourcesRequestAsync(
+				{} as DebugProtocol.LoadedSourcesResponse,
+				{}
+			);
+
+		});
+
+		this.adapter.on(
+			'perl-debug.attachable.listening',
+			data => {
+				this.sendEvent(
+					new Event(
+						'perl-debug.attachable.listening', data
+					)
+				);
+			}
+		);
+
+		this.adapter.initializeRequest()
+			.then(() => {
 				// This debug adapter implements the configurationDoneRequest.
 				response.body.supportsConfigurationDoneRequest = true;
 
@@ -136,11 +155,14 @@ export class PerlDebugSession extends LoggingDebugSession {
 				// make VS Code to show a 'step back' button
 				response.body.supportsStepBack = false;
 
-				response.body.supportsFunctionBreakpoints = false;
+				response.body.supportsFunctionBreakpoints = true;
 
 				response.body.supportsLoadedSourcesRequest = true;
 
+				response.body.supportsTerminateRequest = true;
+
 				this.sendResponse(response);
+
 			});
 	}
 
@@ -155,75 +177,133 @@ export class PerlDebugSession extends LoggingDebugSession {
 		this._configurationDone.notify();
 	}
 
-	protected async launchRequest(response: DebugProtocol.LaunchResponse, args: LaunchRequestArguments) {
-		this.rootPath = args.root;
+	private stepAfterFork(
+		sessions: string,
+		launchResponse: RequestResponse
+	) {
 
-		const inc = args.inc && args.inc.length ? args.inc.map(directory => `-I${directory}`) : [];
-		const execArgs = [].concat(args.execArgs || [], inc);
-		const programArguments = args.args || [];
+		const stoppedInForkWrapper =
+			/^Devel::vscode::_fork/.test(launchResponse.data[0] || "");
+
+		const pidsInDebuggerPrompt =
+			/^\[pid=/.test(launchResponse.db);
+
+		if (stoppedInForkWrapper && sessions === 'break') {
+			// step out of the wrapper
+			this.adapter.request('s');
+		}
+
+		if (sessions === 'watch') {
+
+			this.adapter.request('c');
+			this.sendEvent(
+				new ContinuedEvent(PerlDebugSession.THREAD_ID)
+			);
+
+		} else if (sessions === 'break') {
+
+			this.sendEvent(
+				new StoppedEvent("postfork", PerlDebugSession.THREAD_ID)
+			);
+
+		}
+
+	}
+
+	protected async launchRequest(
+		response: DebugProtocol.LaunchResponse,
+		args: LaunchRequestArguments
+	) {
+
+		this.rootPath = args.root;
 
 		logger.setup(args.trace ? Logger.LogLevel.Verbose : Logger.LogLevel.Stop, false);
 
-		await this._configurationDone.wait(1000);
-
-		this.perlDebugger.removeAllListeners('perl-debug.streamcatcher.data');
-		this.perlDebugger.removeAllListeners('perl-debug.streamcatcher.write');
-		this.sendEvent(new Event('perl-debug.streamcatcher.clear'));
+		this.adapter.removeAllListeners('perl-debug.streamcatcher.data');
+		this.adapter.removeAllListeners('perl-debug.streamcatcher.write');
 
 		if (args.debugRaw) {
-			this.perlDebugger.on('perl-debug.streamcatcher.data', (...x) => {
+			this.adapter.on('perl-debug.streamcatcher.data', (...x) => {
 				this.sendEvent(new Event('perl-debug.streamcatcher.data', x));
 			});
 
-			this.perlDebugger.on('perl-debug.streamcatcher.write', (...x) => {
+			this.adapter.on('perl-debug.streamcatcher.write', (...x) => {
 				this.sendEvent(new Event('perl-debug.streamcatcher.write', x));
 			});
 		}
 
-		const launchResponse = await this.perlDebugger.launchRequest(
-			args.program,
-			args.root,
-			execArgs,
-			{
-				exec: args.exec,
-				args: programArguments,
-				env: {
-					PATH: process.env.PATH || '',
-					// PERL5OPT: process.env.PERL5OPT || '',
-					PERL5LIB: process.env.PERL5LIB || '',
-					...args.env
-				},
-				port: args.port || undefined,
-				console: args.console
-			},
+		// TODO(bh): If the user manually launches two debug sessions in
+		// parallel, this would clear output from one of the sessions
+		// when starting the other one. That is not ideal.
+		if (args.console !== '_attach') {
+			this.sendEvent(new Event('perl-debug.streamcatcher.clear'));
+		}
+
+		const launchResponse = await this.adapter.launchRequest(
+			args,
 			// Needs a reference to the session for `runInTerminal`
 			this
 		);
 
-		if (args.stopOnEntry) {
-			if (launchResponse.ln) {
-				this._currentLine = launchResponse.ln - 1;
-			}
+		// NOTE(bh): This extension used to send the `InitializedEvent`
+		// at the beginning of the `initializeRequest`. That was taken
+		// as a signal that we can accept configurations right away, but
+		// we actually need to talk to the debugger to set breakpoints
+		// without buffering them. Fixed in part thanks to the help in
+		// https://github.com/Microsoft/vscode/issues/69317
+
+		this.sendEvent(new InitializedEvent());
+
+		// With the event sent vscode should now send us breakpoint and
+		// other configuration requests and signals us that it done doing
+		// so with a `configurationDoneRequest`, so we wait here for it.
+		await this._configurationDone.wait(2000);
+
+		if (args.console === '_attach') {
+
+			this.stepAfterFork(args.sessions, launchResponse);
+
+		} else if (args.stopOnEntry) {
+
 			this.sendResponse(response);
 
 			// we stop on the first line
 			this.sendEvent(new StoppedEvent("entry", PerlDebugSession.THREAD_ID));
 		} else {
 			// we just start to run until we hit a breakpoint or an exception
-			this.continueRequest(<DebugProtocol.ContinueResponse>response, { threadId: PerlDebugSession.THREAD_ID });
+			this.continueRequest(
+				<DebugProtocol.ContinueResponse>response,
+				{
+					threadId: PerlDebugSession.THREAD_ID
+				}
+			);
 		}
 
 	}
 
 	protected threadsRequest(response: DebugProtocol.ThreadsResponse): void {
-		// xxx: Not sure if this is sufficient to levarage multi cores?
-		// return the default thread
+
+		// NOTE(bh): vscode actually shows the thread name in the user
+		// interface during multi-session debugging, at least until
+		// https://github.com/Microsoft/vscode/issues/69752 is addressed,
+		// so this tries to make a pretty name for it.
+
+		// NOTE(bh): "The use of interpreter-based threads in perl is
+		// officially discouraged." -- `perldoc threads`. This extension
+		// does not support them in any way, so we only ever report one
+		// thread per adapter instance.
+
 		response.body = {
 			threads: [
-				new Thread(PerlDebugSession.THREAD_ID, "thread 1")
+				new Thread(
+					PerlDebugSession.THREAD_ID,
+					this.adapter.getThreadName()
+				)
 			]
 		};
+
 		this.sendResponse(response);
+
 	}
 
 
@@ -235,8 +315,8 @@ export class PerlDebugSession extends LoggingDebugSession {
  * * step out
  * * step back
  * * reverse continue
+ * * data breakpoints (https://github.com/raix/vscode-perl-debug/issues/4)
  */
-
 
 	/**
 	 * Reverse continue
@@ -244,9 +324,8 @@ export class PerlDebugSession extends LoggingDebugSession {
 	protected reverseContinueRequest(response: DebugProtocol.ReverseContinueResponse, args: DebugProtocol.ReverseContinueArguments) : void {
 		this.sendEvent(new OutputEvent(`ERR>Reverse continue not implemented\n\n`));
 
+		response.success = false;
 		this.sendResponse(response);
-		// no more lines: stop at first line
-		this._currentLine = 0;
 		this.sendEvent(new StoppedEvent("entry", PerlDebugSession.THREAD_ID));
  	}
 
@@ -256,20 +335,82 @@ export class PerlDebugSession extends LoggingDebugSession {
 	protected stepBackRequest(response: DebugProtocol.StepBackResponse, args: DebugProtocol.StepBackArguments): void {
 		this.sendEvent(new OutputEvent(`ERR>Step back not implemented\n`));
 
+		response.success = false;
 		this.sendResponse(response);
-		// no more lines: stop at first line
-		this._currentLine = 0;
 		this.sendEvent(new StoppedEvent("entry", PerlDebugSession.THREAD_ID));
 	}
 
 
 
+	private async checkSignaling(): Promise<boolean> {
 
+		if (!this.adapter.canSignalDebugger) {
+			return false;
+		}
 
+		// When we get here, it looks as though we run on the same host
+		// and our user also has a process with a process identifier that
+		// matches the one we got from the debugger. Check if we can make
+		// the debugger send us a SIGINT. If that works, we assume that
+		// the other direction works aswell. In the unlikely worst case,
+		// the signal goes to the wrong process on a different machine.
+
+		const result = Promise.race<boolean>([
+			new Promise(resolve => {
+				process.once('SIGINT', () => resolve(true))
+			}),
+			new Promise((resolve, reject) => {
+				setTimeout(() => resolve(false), 200)
+			})
+		]);
+
+	  await this.adapter.getExpressionValue(
+			`CORE::kill('INT', ${process.pid})`
+	  );
+
+	  return result;
+	}
+
+	protected async disconnectRequest(
+		response: DebugProtocol.DisconnectResponse,
+		args: DebugProtocol.DisconnectArguments
+	): Promise<void> {
+
+		this.adapter.terminateDebugger()
+		await this.adapter.destroy();
+		this.sendResponse(response);
+
+	}
+
+	protected async terminateRequest(
+		response: DebugProtocol.TerminateResponse,
+		args: DebugProtocol.TerminateArguments
+	): Promise<void> {
+
+		if (this.adapter.terminateDebugger()) {
+
+			// FIXME(bh): Unsure whether to do this here.
+			await this.adapter.destroy();
+
+			this.sendResponse(response);
+
+		} else {
+
+			response.success = false;
+			response.body = {
+				error: {
+					message: 'Cannot send SIGTERM to debugger on remote system'
+				}
+			};
+			this.sendResponse(response);
+
+		}
+
+	}
 
 	protected pauseRequest(response: DebugProtocol.PauseResponse, args: DebugProtocol.PauseArguments): void {
 
-		if (this.perlDebugger.isRemote) {
+		if (!this.adapter.canSignalDebugger) {
 			response.success = false;
 			response.body = {
 				error: {
@@ -281,57 +422,117 @@ export class PerlDebugSession extends LoggingDebugSession {
 		} else {
 
 			// Send SIGINT to the `perl -d` process on the local system.
-			process.kill(this.perlDebugger.debuggerPid, 'SIGINT');
+			process.kill(this.adapter.debuggerPid, 'SIGINT');
 			this.sendResponse(response);
-
-			// TODO(bh): It is not clear if we are supposed to also send a
-			// `StoppedEvent` and if we are, what the logic for that ought
-			// to be. Basically, whenever we see the `DB<N>` prompt from
-			// the debugger we are most probably stopped. That's the same
-			// for all protocol functions though, which suggests that ought
-			// to be handled centrally someplace, and not individually for
-			// each request. As it is, in any case, it does not seem to
-			// make a difference in vscode whether send one here or not.
 
 		}
 
 	}
 
+	private isValidFunctionName(name: string): boolean {
+		return /^[':A-Za-z_][':\w]*$/.test(name);
+	}
+
+	private async setFunctionBreakPointAsync(
+		bp: DebugProtocol.FunctionBreakpoint
+	): Promise<DebugProtocol.Breakpoint> {
 
 
+		if (!this.isValidFunctionName(bp.name)) {
+
+			// Report an unverified breakpoint when there is an attempt to
+			// set a function breakpoint on something that cannot be a Perl
+			// function; we cannot pass illegal names like `12345` to the
+			// debugger as it might misinterpret it as something other than
+			// a function breakpoint request.
+
+			return new Breakpoint(false);
+
+		}
+
+		const res = await this.adapter.request(`b ${bp.name}`);
+
+		if (/Subroutine \S+ not found/.test(res.data[0])) {
+			// Unverified (and ignored by the debugger), but see below.
+		}
+
+		this.sendEvent(new OutputEvent(
+			`Adding function breakpoint on ${bp.name}\n`
+		));
+
+		// NOTE(bh): This is a simple attempt to get file and line
+		// information about where the sub is defined, at least to
+		// some extent, by going through `%DB::sub`, assuming it has
+		// already been loaded and has not been defined in unusal
+		// ways. Not sure if vscode actually uses the values though.
+
+		const pathPos = await this.adapter.getExpressionValue(
+			`$DB::sub{'${this.adapter.escapeForSingleQuotes(bp.name)}'}`
+		);
+
+		const [ bpWhole, bpFile, bpFirst, bpLast ] = pathPos
+			? pathPos.match( /(.*):(\d+)-(\d+)$/ )
+			: [undefined, undefined, undefined, undefined];
+
+		return new Breakpoint(
+			!!pathPos,
+			parseInt(bpFirst),
+			undefined,
+			new Source(
+				bpFile,
+				bpFile,
+			)
+		);
+
+	}
 
 	private async setFunctionBreakPointsRequestAsync(response: DebugProtocol.SetFunctionBreakpointsResponse, args: DebugProtocol.SetFunctionBreakpointsArguments): Promise<DebugProtocol.SetFunctionBreakpointsResponse> {
-		const breakpoints: string[] = [];
-		const newBreakpoints: string[] = args.breakpoints.map(bp => { return bp.name });
-		const neoBreakpoints: DebugProtocol.FunctionBreakpoint[] = [];
 
-		for (let i = 0; i < this._functionBreakPoints.length; i++) {
-			const name = this._functionBreakPoints[i];
-			if (newBreakpoints.indexOf(name) < 0) {
-				this.sendEvent(new OutputEvent(`Remove ${name}\n`));
-				await this.perlDebugger.request(`B ${name}`);
-			}
+		// FIXME(bh): It is not clear yet how to set breakpoints on subs
+		// that are not yet loaded at program start time. Global watch
+		// expressions can be used like so:
+		//
+		//   % perl -d -e0
+		//
+		//   Loading DB routines from perl5db.pl version 1.53
+		//   Editor support available.
+		//
+		//   Enter h or 'h h' for help, or 'man perldebug' for more help.
+		//
+		//   main::(-e:1):	0
+		//   	DB<1> w *Data::Dumper::Dumper{CODE}
+		//   	DB<2> use Data::Dumper
+		//
+		//   	DB<3> r
+		//   Watchpoint 0:	*Data::Dumper::Dumper{CODE} changed:
+		//   		old value:	''
+		//   		new value:	'CODE(0x55f9e2629688)'
+		//
+		// But possibly with considerable performance impact as any
+		// watch expression would put the debugger in trace mode? Might
+		// make sense to offer that behind a `launch.json` option.
+
+		for (const [name, bp] of this._functionBreakPoints.entries()) {
+
+			// Remove breakpoint
+			await this.adapter.request(`B ${name}`);
+
 		}
 
-		for (let i = 0; i < args.breakpoints.length; i++) {
-			const bp = args.breakpoints[i];
-			if (this._functionBreakPoints.indexOf(bp.name) < 0) {
-				breakpoints.push(bp.name);
-				const res = await this.perlDebugger.request(`b ${bp.name}`);
+		this._functionBreakPoints.clear();
 
-				this.sendEvent(new OutputEvent(`Add ${bp.name}\n`));
-				const neoBreakpoint = <DebugProtocol.FunctionBreakpoint>{name: bp.name};
-				neoBreakpoints.push(neoBreakpoint);
-				response.body.breakpoints = [new Breakpoint(true, 4, 0, new Source('Module.pm', join(/* this.filepath, */ 'Module.pm')) )];
-				this.sendResponse(response);
+		for (const bp of args.breakpoints) {
 
-				this.sendEvent(new OutputEvent(`Add ${bp.name}\n`));
-			} else {
-				neoBreakpoints.push(bp);
-			}
+			this._functionBreakPoints.set(
+				bp.name,
+				await this.setFunctionBreakPointAsync(bp)
+			);
+
 		}
 
-		this._functionBreakPoints = breakpoints;
+		response.body = {
+			breakpoints: [...this._functionBreakPoints.values()]
+		};
 
 		return response;
 	}
@@ -361,7 +562,7 @@ export class PerlDebugSession extends LoggingDebugSession {
 		const name = this.getVariableName(args.name, args.variablesReference)
 			.then((variableName) => {
 
-				return this.perlDebugger.request(`${variableName}='${args.value}'`)
+				return this.adapter.request(`${variableName}='${args.value}'`)
 					.then(() => {
 						response.body = {
 							value: args.value,
@@ -381,75 +582,24 @@ export class PerlDebugSession extends LoggingDebugSession {
 	/**
 	 * Step out
 	 */
-    protected stepOutRequest(response: DebugProtocol.StepOutResponse, args: DebugProtocol.StepOutArguments): void {
-		this.perlDebugger.request('r')
-			.then((res) => {
-				if (res.ln) {
-					this._currentLine = this.convertDebuggerLineToClient(res.ln);
-				}
-
-				this.sendResponse(response);
-
-				if (res.finished) {
-					this.sendEvent(new TerminatedEvent());
-				} else {
-					this.sendEvent(new StoppedEvent("step", PerlDebugSession.THREAD_ID));
-				}
-				// no more lines: run to end
-			})
-			.catch(err => {
-				const [ error = err ] = err.errors || [];
-				if (err.exception) {
-					this.sendEvent(new StoppedEvent("exception", PerlDebugSession.THREAD_ID, error.near));
-				} else {
-					this.sendEvent(new OutputEvent(`ERR>StepOut error: ${error.message}\n`));
-					this.sendEvent(new TerminatedEvent());
-				}
-				response.success = false;
-				this.sendResponse(response);
-			});
+	protected stepOutRequest(response: DebugProtocol.StepOutResponse, args: DebugProtocol.StepOutArguments): void {
+		this.adapter.request('r');
+		this.sendResponse(response);
 	}
 
 	/**
 	 * Step in
 	 */
-    protected stepInRequest(response: DebugProtocol.StepInResponse, args: DebugProtocol.StepInArguments): void {
-		this.perlDebugger.request('s')
-			.then((res) => {
-				if (res.ln) {
-					this._currentLine = this.convertDebuggerLineToClient(res.ln);
-				}
-
-				this.sendResponse(response);
-
-				if (res.finished) {
-					this.sendEvent(new TerminatedEvent());
-				} else {
-					this.sendEvent(new StoppedEvent("step", PerlDebugSession.THREAD_ID));
-				}
-				// no more lines: run to end
-			})
-			.catch(err => {
-				const [ error = err ] = err.errors || [];
-				if (err.exception) {
-					this.sendEvent(new StoppedEvent("exception", PerlDebugSession.THREAD_ID, error.near));
-				} else {
-					this.sendEvent(new OutputEvent(`ERR>StepIn error: ${error.message}\n`));
-					this.sendEvent(new TerminatedEvent());
-				}
-				response.success = false;
-				this.sendResponse(response);
-			});
+	protected stepInRequest(response: DebugProtocol.StepInResponse, args: DebugProtocol.StepInArguments): void {
+		this.adapter.request('s');
+		this.sendResponse(response);
 	}
 
 	/**
 	 * Restart
 	 */
 	private async restartRequestAsync(response: DebugProtocol.RestartResponse, args: DebugProtocol.RestartArguments): Promise<DebugProtocol.RestartResponse> {
-		const res = await this.perlDebugger.request('R')
-		if (res.ln) {
-			this._currentLine = this.convertDebuggerLineToClient(res.ln);
-		}
+		const res = await this.adapter.request('R')
 		if (res.finished) {
 			this.sendEvent(new TerminatedEvent());
 		} else {
@@ -475,11 +625,11 @@ export class PerlDebugSession extends LoggingDebugSession {
 
 		const path = args.source.path;
 
-		const debugPath = await this.perlDebugger.relativePath(path);
+		const debugPath = await this.adapter.relativePath(path);
 		const editorExisting = this._breakPoints.get(path);
 		const editorBPs: number[] = args.lines.map(ln => ln);
-		const dbp = await this.perlDebugger.getBreakPoints();
-		const debuggerPBs: number[] = (await this.perlDebugger.getBreakPoints())[debugPath] || [];
+		const dbp = await this.adapter.getBreakPoints();
+		const debuggerPBs: number[] = (await this.adapter.getBreakPoints())[debugPath] || [];
 		const createBP: number[] = [];
 		const removeBP: number[] = [];
 		const breakpoints = new Array<Breakpoint>();
@@ -488,7 +638,7 @@ export class PerlDebugSession extends LoggingDebugSession {
 		for (let i = 0; i < debuggerPBs.length; i++) {
 		 	const ln = debuggerPBs[i];
 			if (editorBPs.indexOf(ln) < 0) {
-				await this.perlDebugger.clearBreakPoint(ln, debugPath);
+				await this.adapter.clearBreakPoint(ln, debugPath);
 			}
 		}
 
@@ -497,7 +647,7 @@ export class PerlDebugSession extends LoggingDebugSession {
 		 	const ln = editorBPs[i];
 			if (debuggerPBs.indexOf(ln) < 0) {
 				try {
-					const res = await this.perlDebugger.setBreakPoint(ln, debugPath);
+					const res = await this.adapter.setBreakPoint(ln, debugPath);
 					const bp = <DebugProtocol.Breakpoint> new Breakpoint(true, ln);
 					bp.id = this._breakpointId++;
 					breakpoints.push(bp);
@@ -537,78 +687,25 @@ export class PerlDebugSession extends LoggingDebugSession {
 	 * Next
 	 */
 	protected nextRequest(response: DebugProtocol.NextResponse, args: DebugProtocol.NextArguments): void {
-		this.perlDebugger.request('n')
-			.then((res) => {
-				if (res.ln) {
-					this._currentLine = this.convertDebuggerLineToClient(res.ln);
-				}
-
-				this.sendResponse(response);
-
-				if (res.finished) {
-					this.sendEvent(new TerminatedEvent());
-				} else {
-					this.sendEvent(new StoppedEvent("step", PerlDebugSession.THREAD_ID));
-				}
-				// no more lines: run to end
-			})
-			.catch(err => {
-				const [ error = err ] = err.errors || [];
-				if (err.exception) {
-					this.sendEvent(new StoppedEvent("exception", PerlDebugSession.THREAD_ID, error.near));
-				} else {
-					this.sendEvent(new OutputEvent(`ERR>Next error: ${error.message}\n`));
-					this.sendEvent(new TerminatedEvent());
-				}
-				response.success = false;
-				this.sendResponse(response);
-			});
+		this.adapter.request('n');
+		this.sendResponse(response);
 	}
-
 
 	/**
 	 * Continue
 	 */
 	protected continueRequest(response: DebugProtocol.ContinueResponse, args: DebugProtocol.ContinueArguments): void {
 
-		// NOTE(bh): "Please note: a debug adapter is not expected to
-		// send this event in response to a request that implies that
-		// execution continues, e.g. ‘launch’ or ‘continue’." -- but in
-		// our case sending the `c` command to the debugger is never
-		// acknowledged by the debugger, we cannot tell if it succeeded
-		// and the promise below is resolved only once the debugger has
-		// halted execution of the debuggee again. Without a response to
-		// the `continueRequest`, vscode does not offer users a `pause`
-		// button, so without sending this event, we cannot pause from
-		// the debug user interface. So we send the event...
+		// NOTE(bh): The code for execution control requests like this
+		// one used to delay sending a response and events until there
+		// has been a response from the debugger. That does not make
+		// sense though since we explicitly pass control the debugger,
+		// and it might not return at all until the debuggee terminates.
+		// Instead, responses are sent immediately and events are sent
+		// based on the actual state of the debugger.
 
-		this.sendEvent(new ContinuedEvent(PerlDebugSession.THREAD_ID));
-
-		this.perlDebugger.request('c')
-			.then((res) => {
-				if (res.ln) {
-					this._currentLine = this.convertDebuggerLineToClient(res.ln);
-				}
-				this.sendResponse(response);
-
-				if (res.finished) {
-					this.sendEvent(new TerminatedEvent());
-				} else {
-					this.sendEvent(new StoppedEvent("breakpoint", PerlDebugSession.THREAD_ID));
-				}
-			})
-			.catch((err) => {
-				const [ error = err ] = err.errors || [];
-				if (err.exception) {
-					this.sendEvent(new StoppedEvent("exception", PerlDebugSession.THREAD_ID, error.near));
-				} else {
-					this.sendEvent(new OutputEvent(`ERR>Continue error: ${error.message}\n`));
-					this.sendEvent(new TerminatedEvent());
-				}
-
-				response.success = false;
-				this.sendResponse(response);
-			});
+		this.adapter.request('c');
+		this.sendResponse(response);
 	}
 
 	/**
@@ -629,7 +726,7 @@ export class PerlDebugSession extends LoggingDebugSession {
 
 	private getVariableName(name: string, variablesReference: number): Promise<string> {
 		let id = this._variableHandles.get(variablesReference);
-		return this.perlDebugger.variableList({
+		return this.adapter.variableList({
 			global_0: 0,
 			local_0: 1,
 			closure_0: 2,
@@ -645,7 +742,7 @@ export class PerlDebugSession extends LoggingDebugSession {
 	protected variablesRequest(response: DebugProtocol.VariablesResponse, args: DebugProtocol.VariablesArguments): void {
 		const id = this._variableHandles.get(args.variablesReference);
 
-		this.perlDebugger.variableList({
+		this.adapter.variableList({
 			global_0: 0,
 			local_0: 1,
 			closure_0: 2,
@@ -686,7 +783,7 @@ export class PerlDebugSession extends LoggingDebugSession {
 		if (/^[\$|\@]/.test(args.expression)) {
 			const expression = args.expression.replace(/\.(\'\w+\'|\w+)/g, (...a) => `->{${a[1]}}`);
 
-			this.perlDebugger.getExpressionValue(expression)
+			this.adapter.getExpressionValue(expression)
 				.then(result => {
 					if (/^HASH/.test(result)) {
 						response.body = {
@@ -719,7 +816,7 @@ export class PerlDebugSession extends LoggingDebugSession {
 	 * Evaluate command line
 	 */
 	private evaluateCommandLine(response: DebugProtocol.EvaluateResponse, args: DebugProtocol.EvaluateArguments) {
-		this.perlDebugger.request(args.expression)
+		this.adapter.request(args.expression)
 			.then((res) => {
 				if (res.data.length > 1) {
 					res.data.forEach((line) => {
@@ -748,12 +845,12 @@ export class PerlDebugSession extends LoggingDebugSession {
 
 		const expression = isVariable ? clientExpression.replace(/\.(\'\w+\'|\w+)/g, (...a) => `->{${a[1]}}`) : clientExpression;
 
-		let value = await this.perlDebugger.getExpressionValue(expression);
+		let value = await this.adapter.getExpressionValue(expression);
 		if (/^Can\'t use an undefined value as a HASH reference/.test(value)) {
 			value = undefined;
 		}
 
-		const reference = isVariable ? await this.perlDebugger.getVariableReference(expression) : null;
+		const reference = isVariable ? await this.adapter.getVariableReference(expression) : null;
 		if (typeof value !== 'undefined' && /^HASH|ARRAY/.test(reference)) {
 			return {
 				value: reference,
@@ -812,15 +909,11 @@ export class PerlDebugSession extends LoggingDebugSession {
 	 */
 	private async stackTraceRequestAsync(response: DebugProtocol.StackTraceResponse, args: DebugProtocol.StackTraceArguments): Promise<DebugProtocol.StackTraceResponse> {
 
-		// FIXME(bh): There is probably a better way to re-use the code
-		// in that function that does not require setting up a malformed
-		// object here, but this seems good enough for the moment.
-		await this.loadedSourcesRequestAsync(
-			{} as DebugProtocol.LoadedSourcesResponse,
-			{}
-		);
+		// TODO(bh): Maybe re-set the function breakpoints from here, if
+		// there are any newly loaded sources there most probably are new
+		// functions, and we might be trying to break on one of them...
 
-		const stacktrace = await this.perlDebugger.getStackTrace();
+		const stacktrace = await this.adapter.getStackTrace();
 		const frames = new Array<StackFrame>();
 
 		// In case this is a trace run on end, we want to return the file with the exception in the @ position
@@ -865,7 +958,7 @@ export class PerlDebugSession extends LoggingDebugSession {
 
 	private async loadedSourcesRequestAsync(response: DebugProtocol.LoadedSourcesResponse, args: DebugProtocol.LoadedSourcesArguments): Promise<DebugProtocol.LoadedSourcesResponse> {
 
-		const loadedFiles = await this.perlDebugger.getLoadedFiles();
+		const loadedFiles = await this.adapter.getLoadedFiles();
 
 		const newFiles = loadedFiles.filter(
 			x => !this._loadedSources.has(x)
@@ -880,9 +973,9 @@ export class PerlDebugSession extends LoggingDebugSession {
 				// open the local file rather than retrieving a read-only
 				// version of the code through the debugger (that lacks code
 				// past `__END__` markers, among possibly other limitations).
-				this.perlDebugger.isRemote
-					? this._loadedSources.size
-					: 0
+				this.adapter.canSignalDebugger
+					? 0
+					: this._loadedSources.size
 			);
 
 			this.sendEvent(new LoadedSourceEvent("new", newSource));
@@ -933,7 +1026,7 @@ export class PerlDebugSession extends LoggingDebugSession {
 		}
 
 		response.body = {
-			content: await this.perlDebugger.getSourceCode(
+			content: await this.adapter.getSourceCode(
 				args.source.path
 			)
 		};
@@ -960,7 +1053,14 @@ export class PerlDebugSession extends LoggingDebugSession {
 
 	}
 
-}
+	// Custom requests
 
-DebugSession.run(PerlDebugSession);
+	protected customRequestx(command: string, response: DebugProtocol.Response, args: any) {
+		if (command === '...') {
+			// this....(response, args);
+		}
+		response.success = false;
+	}
+
+}
 
