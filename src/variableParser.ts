@@ -125,9 +125,19 @@ export function resolveVariable(name, variablesReference, variables) {
 		limit++;
 	}
 
-	result.unshift(key);
+	// return the var if it's a simple non-composite scalar var
+	if (!result.length) { return key; }
 
-	return result.join('->');
+	// this is a structured var: array (@), hash (%), object ($) or a ref ($) to them
+	if (/^\$/.test(key)) { result.unshift(key,'->'); } // it's a ref, so we need $ar->[k], $hr->{k}, $obj->{k}
+		else {
+			// non-ref: @a or %h, so we need $a[k] and $h{k}
+			// So we replace the @ and % sigils with $
+			key = key.replace(/^(@|%)/,'$');
+			result.unshift(key);
+		}
+
+	return result.join(''); // combine the var name with the dereference chain
 }
 
 /**

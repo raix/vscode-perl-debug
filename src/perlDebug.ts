@@ -161,6 +161,8 @@ export class PerlDebugSession extends LoggingDebugSession {
 
 				response.body.supportsTerminateRequest = true;
 
+				response.body.supportsSetVariable = true;
+
 				this.sendResponse(response);
 
 			});
@@ -562,7 +564,240 @@ export class PerlDebugSession extends LoggingDebugSession {
 		const name = this.getVariableName(args.name, args.variablesReference)
 			.then((variableName) => {
 
-				return this.adapter.request(`${variableName}='${args.value}'`)
+				// We use perl's eval() here for maximum flexibility so that the user can actually change the type of the value in the VS Code
+				// GUI on-the-fly. E.g. by simply changing a scalar value into an array ref by typing [1,2,3] as the new value of the scalar.
+				// E.g. if the user has an array @a = (1,2,3) and edits the 2nd element (2) by typing [4,5,6] in the GUI, the scalar value of 2
+				// will be replaced with the expected array ref, so the updated array will look like @a = (1,[4,5,6],3) after the edit.
+				// This allows the user to arbitrarily change the structure of composite types (like arrays and hashes) on-the-fly during debugging
+				// using the VS Code GUI. In fact, it also allows you to do arithmetic during editing a value so you can just simply type "11 + 22"
+				// as the new value and it becomes 33. And you can use any valid perl expression for the new value e.g. $x + $y will set the value
+				// to the sum of vars $x and $y (they obviously have to be defined in the perl code and visible in the given scope).
+				//
+				// Note that we also support perl string interpolation just like perl does.
+				// This means that what the new value will be depends on whether or how the specified value is quoted by the user in the GUI.
+				//
+				// Assume we have two perl vars $x and $y, with values 1 and 2 respectively, then quoting will work as a perl programmer expects it
+				// to work:
+				//
+				//   1. Unquoted expression: $x + $y evaluates to the value 3 because $x = 1 and $y = 2. (3 = 1 + 2)
+				//
+				//   2. Quoted expression:
+				//
+				//      1. Single-quoted: '$x + $y' evaluates to the string '$x + $y'. No variable interpolation
+				//
+				//      2. double-quoted: "$x + $y" evaluates to the string '1 + 2'. Variable interpolation
+				//
+				//
+				//  Note that the following assignment operations assume that the user types in meaningful perl expressions.
+				//
+				//  Otherwise GIGO rules apply. That is, if the user specifies a garbage expression, then the result will be a garbage value or a failed assignment.
+				//  If the user-specified string is not a valid perl expression then it will be assigned as an interpolated perl string (unless it's single quoted,
+				//  in which case it's not interpolated). This is not a bug but a feature (and hence it won't be "fixed"). The malformed expression will be assigned
+				//  as a string to the variable so that the user can easily see that they made a mistake (because they will get a string instead of e.g. the expected
+				//  array). But for normal everyday well-formed user input this will not happen so it will not be an issue.
+				//
+				//  That is, the following implementation provides perl programmers with an intuitive set of assignment operations but it assumes that the
+				//  user actually knows what perl expressions actually look like (so that they don't type garbage expressions in).
+				//
+				//  Note that some of the heuristic assignment rules below deliberately use extended semantics compared to perl to make value assignments uniform
+				//  for both composite (arrays, hashes, objects) and scalar variables so that you don't have to care about whether you have to specify an array or
+				//  an array ref when e.g. creating an array. This is not a bug but a feature. So that you can just simply use the same array (1,2,3,4) and assign
+				//  this in the VS Code GUI to any type of variable and you will get an array in the appropriate form (array or array ref). In other words, these
+				//  assignment rules automatically convert between arrays and array refs as needed depending on context, hence allowing intuitive uniform assingments
+				//  to variables. E.g. in the VS Code GUI you can assign the array (1,2,3,4) to an array @a, an element in the array $a[i], to a hash %h, to a key
+				//  in the hash $h{k} or a scalar $s and you will get an array in the given position
+				//
+				//    @a    = (1,2,3,4)
+				//    $a[i] = [1,2,3,4]
+				//    %h    = (1,2,3,4)
+				//    $h{k} = [1,2,3,4]
+				//    $s    = [1,2,3,4]
+				//
+				//  Note that some of these arrays are actually array refs but you don't have to care about this difference. The appropriate form (ref or non-ref)
+				//  will be used automatically.
+				//
+				//  So you can just simply assign an array value of (1,2,3,4) to any variable without having to care about whether you have to use an array ref or
+				//  not in the given context. But this also means that these intuitive assignments are NOT (necessarily) perl assignment instructions. Because perl
+				//  doesn't do this automatic conversion between refs and nonrefs. So in perl the above assignments would be
+				//
+				//    @a    = (1,2,3,4)
+				//    $a[i] = (1,2,3,4)
+				//    %h    = (1,2,3,4)
+				//    $h{k} = (1,2,3,4)
+				//    $s    = (1,2,3,4)
+				//
+				//  and although the assignments to @a and %h would work the same way as above, but perl would assign the last element (4) to all the scalar variables
+				//  $a[i], $h{k} and $s (so $a[i] = 4, $h{k} = 4, $s = 4) because of the scalar context, which is obviously not what the user's intention was when they
+				//  specified (1,2,3,4) in the GUI.
+				//
+				//  So the intuitive heuristic assignment rules below do what the user would intuitively expect to happen and not necessarily what perl would do:)
+				//
+				//
+				//  The following array (@a), hash (%h) and scalar ($s) assigment operations are supported:
+				//  ---------------------------------------------------------------------------------------
+				//
+				//    The "User Input" column shows what the user types into the VS Code GUI edit box when editing a variable (@a, %h, $s).
+				//    The "Assignment" column shows what perl assignment will be done as a result.
+				//
+				//    E.g. typing @x into the edit box while editing the value of @a will copy the elements of @x over into @a as in @a = @x.
+				//
+				//
+				//        User Input    Assignment
+				//
+				//     @a:
+				//            @x        @a = @x
+				//            %h        @a = %h
+				//            $s        @a = ($s)
+				//           {1,2}      @a = (1,2)
+				//          ({1,2})     @a = ({1,2})
+				//           1,2,3      @a = (1,2,3)
+				//          (1,2,3)     @a = (1,2,3)
+				//          [1,2,3]     @a = (1,2,3)
+				//         ([1,2,3])    @a = ([1,2,3])
+				//
+				//     %h:
+				//             %x       %h = %x
+				//             @a       %h = @a
+				//           {1,2}      %h = (1,2)
+				//          1,2,3,4     %h = (1,2,3,4)  (hence (1 => 2, 3 => 4))
+				//         (1,2,3,4)    %h = (1,2,3,4)
+				//         [1,2,3,4]    %h = (1,2,3,4)
+				//
+				//     $s:
+				//             $x       $s = $x
+				//             @a       $s = [@a]
+				//             %h       $s = {@{[%h]}}  (a hashref to a copy of %h)
+				//           {1,2}      $s = {1,2}
+				//           1,2,3      $s = "1,2,3"
+				//          (1,2,3)     $s = [1,2,3]
+				//          [1,2,3]     $s = [1,2,3]
+				//         ([1,2,3])    $s = [[1,2,3]]
+				//           undef      $s = undef
+				//
+				//    String ops with the usual quoting rules and variable interpolation are also supported.
+				//
+				//    Plus some simpler perl expressions. Invalid expressions are treated as double-quoted strings and will be interpolated accordingly.
+				//    Some examples: assuming $x = 1 and $y = 2
+        //
+				//          11 + 22     $s = 11 + 22     (hence $s = 33)
+				//          $x + $y     $s = 1  + 2      (hence $s = 3)
+				//         '$x + $y'    $s = '$x + $y'
+				//         "$x + $y"    $s = "1 + 2"
+				//
+				//          $x,$y,3     $s = "1,2,3"
+				//         ($x,$y,3)    $s = [1,2,3]
+				//         [$x,$y,3]    $s = [1,2,3]
+				//
+				//      Invalid expressions are treated as double-quoted strings and interpolated accordingly e.g.
+				//
+				//          11 +        $s = "11 +"
+				//          $x +        $s = "1 +"
+				//
+				//      Quoted invalid expressions are strings and hence are interpolated according to their quotation marks e.g.
+				//
+				//         '$x +'       '$x +'
+				//         "$x +"       "1 +"
+				//
+				//      Special case for x'y. Old-style class reference lookalikes are interpreted as strings and not as x::y because it's extremely unlikely
+				//      that actually old-style class references are used by the user in the expression. This way strings with single-quotes will work
+				//      seamlessly (e.g. "There's" remains "There's" intead of becoming "There::s":)
+				//
+				//           x'y        "x'y"
+				//
+				//  The above assignment ops provide perl programmers with an intuitive set of assignment operations for everyday use cases.
+
+				// Note that initially the user-specified value will appear in the GUI as specified by the user, that is, as the original string because
+				// VS Code doesn't update the GUI immediately. But once the user does a single-step in the debugger the evaluated expression value
+				// will be displayed in the GUI as the GUI updates.
+
+				let value = args.value.replace(/^\s*/,'').replace(/\s*$/,''); // remove leading and trailing whitespace if any
+
+				if (!/^'.*'$/.test(value) && value != 'undef' && !/^"\s+"$/.test(value)) { // Single-quoted strings, undef, double-quoted whitespace strings
+					if (value == '' || value == "''" || value == '""') { value = "''"; }     // and empty strings are passed through directly
+						else if (/^[ '"]+$/.test(value)) {
+							// Quote trolling empty strings and pass them through:)
+							// There is no real-life need to specify a value string like this one so the user is obviously trying to troll this parser.:)
+							// Or they might just have a very "special" pathological use case.:)
+
+							// This string might be a malformed quotation mark fest so we replace the outermost quotation mark pair (if any)
+							if (/^'.*'$/.test(value)) { value = value.replace(/^'(.*)'$/,'$1'); }
+							  else if (/^".*"$/.test(value)) { value = value.replace(/^"(.*)"$/,'$1'); }
+
+						  // And then we quote the string properly so that it's a properly delimited string and hence it can be assigned to a variable
+							value = "'" + value.replace(/'/g,"\\'") + "'";
+						}
+						else if (/^\S*\w'\w\S*$/.test(value)) { value = '"' + value + '"'; } // Pass old-style class ref single words of the form a'b'c through
+							else {                                                             // because eval() converts them to a::b::c, which we don't want
+								// This is a non-empty value string that's not 'undef'
+								let use_eval         = true;
+								let eval_type_prefix = ''; // not needed for scalar types. Only needed for arrays and hashes
+								let eval_type_suffix = '';
+
+								if (/^@/.test(variableName) || /^%/.test(variableName)) {
+									if (/^@/.test(value) || /^%/.test(value)) { use_eval = false; } // because it can be directly assigned e.g. @a = @x, %h = %x
+										else {
+
+											if (/^\{.*\}$/.test(value)) { value = value.replace(/^./,'[').replace(/.$/,']'); } // {expr} -> [expr]
+												else if (!/^\[.*\]$/.test(value) && !/^\(.*\)$/.test(value)) { // if not array (expr) or [expr]
+													value = '[' + value + ']'; // value -> [value]
+												}
+
+											eval_type_prefix = '@'; // we use arrays internally during evaluation. Even for hashes
+										}
+								}
+
+								if (use_eval) {
+
+									if (/^\(.*\)$/.test(value) || /^\{.*\}$/.test(value)) { // value = {expr} or value = (expr)
+
+										if (/^\{/.test(value)) {
+											eval_type_prefix = '{@'; // to generate a hash ref from the array (ref) after evaluation
+											eval_type_suffix = '}';
+										}
+
+										value = value.replace(/^./,'[').replace(/.$/,']'); // (expr)|{expr} -> [expr]
+									}
+									else if (/^@/.test(value)) { value = '[' + value + ']'; }  // @a -> [@a]
+									else if (/^%/.test(value)) {
+										value = '[' + value + ']'; // %h -> [%h]
+										eval_type_prefix = '{@';   // to generate a hash ref from the array (ref) after evaluation
+										eval_type_suffix = '}';
+									}
+									else if (!/^\[.*\]$/.test(value) && !/^{.*}$/.test(value) && /,/.test(value)) {
+										// This might be a list e.g. 1, 2, 3. If it is then we treat it as a simple string and double-quote it
+										let v = value.replace(/(".*?),(.*?")/g,'$1 $2').replace(/('.*?),(.*?')/g,'$1 $2'); // mask commas inside strings
+
+										// Double-quote it if it looks like a list
+										if (/,/.test(v)) { value = '"' + value.replace(/"/g,'\\"') + '"'; } // 1, 2, 3 -> "1, 2, 3"
+									}
+
+									// Escape the single-quotes in the value (if any) TWICE for the nested single-quoting in the eval() below
+									value = value.replace(/'/g,"\\\\\\'"); // ' -> \\\'
+
+									// If it's a valid perl expression then we use the value of the expression otherwise we use the value directly as a string.
+									// This way users can just simply type strings in without having to quote the string in the GUI. So they can just type
+									// expressions or strings in and it will just work in both cases
+									value = "eval('no warnings; " +
+
+																"my $v = \\'" + value + "\\'; " +    // single-quoting to prevent string interpolation at this point
+
+																"my $r; eval { $r = eval($v) }; " +  // check if it's a valid expression and get its value if it is
+
+																"if (not defined $r) { " +           // and if it's not then treat it as a double-quoted string and interpolate
+																	"my $qv = $v !~ /^\".*\"$/ ? \\'\"\\'.$v.\\'\"\\' : $v; " +
+																	"eval { $r = eval(\"$qv\"); }; " +
+																"} " +
+
+																"defined($r) ? $r : $v')";  // if all else fails then we just return the original value string as the result
+
+									if (eval_type_prefix) { // The eval type prefix and suffix are used for type conversion to convert the array ref eval result
+										value = eval_type_prefix + '{' + value + '}' + eval_type_suffix; // to the target type
+									}
+								}
+							}
+				}
+
+				return this.adapter.request(`${variableName}=${value}`)
 					.then(() => {
 						response.body = {
 							value: args.value,
