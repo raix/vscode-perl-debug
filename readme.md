@@ -4,7 +4,7 @@
 [![Greenkeeper](https://badges.greenkeeper.io/raix/vscode-perl-debug.svg)](https://greenkeeper.io/)
 [![semantic-release](https://img.shields.io/badge/%20%20%F0%9F%93%A6%F0%9F%9A%80-semantic--release-e10079.svg)](https://github.com/semantic-release/semantic-release)
 
-A debugger for perl in vs code.
+A debugger for Perl in Visual Studio Code.
 
 ![Perl Debug](images/vscode-perl-debugger.gif)
 
@@ -15,9 +15,9 @@ A debugger for perl in vs code.
 * Process control *(pause, resume, restart)*
 * Stacktrace
 * Variable inspection *(support for objects, arrays, strings, numbers and boolean)*
-* Variable watching *(for now we don't create actual watch breakpoints - figuring out how to maintain t)*
+* Variable watching *(for now we don't create actual watch breakpoints - figuring out how to maintain it)*
 * Setting new values of variables *(works inside of arrays and objects too)*
-* Debug console for writing expressions *(write perl expressions in the debug console)*
+* Debug console for writing expressions *(write Perl expressions in the debug console)*
 * Variable values on hover in code
 * Loaded modules view *(including source code retrieval from remote)*
 * Multi-session/multi-target debugging *(including support for `fork` where available)*
@@ -25,7 +25,7 @@ A debugger for perl in vs code.
 ### Settings
 
 * `exec` Can be set to a specific perl binary *defaults to "perl"*
-* `execArgs` Arguments that is passed to the binary perl executable
+* `execArgs` Arguments that is passed to the binary Perl executable
 * `inc` Can be an array of strings / include paths
 * `args` Can be an array of strings / program arguments
 * `env` Used for setting environment variables when debugging, `PATH` and `PERL5LIB` default to system unless overwritten
@@ -40,7 +40,7 @@ A debugger for perl in vs code.
 
 You might have to install the `PadWalker` Perl package for variable inspection on Windows *(and some linux distributions?)*
 
-A standard `launch.json` will resemble the following (on Windows, *nix distros will differ slightly.)
+A standard `launch.json` will resemble the following (on Windows; *nix distros will differ slightly.)
 
 ```json
     {
@@ -66,10 +66,10 @@ A standard `launch.json` will resemble the following (on Windows, *nix distros w
 ### Remote debugger
 
 When setting the `console` attribute in `launch.json` to `remote` the
-vs code debug extension will start a debug server for the remote perl
+Visual Studio Code debug extension will start a debug server for the remote Perl
 debug instance to connect to.
 
-eg.:
+E.g.:
 ```bash
  # Start remote debugger in vs code on port 5000 then:
  $ PERLDB_OPTS="RemotePort=localhost:5000" perl -d test.pl
@@ -79,7 +79,7 @@ eg.:
 ### Handling multiple processes
 
 Visual Studio Code supports running multiple debugging sessions in
-parallel, if you have multiple configurations in your `launch.json`,
+parallel. If you have multiple configurations in your `launch.json`,
 you can start several of them simultaneously.
 
 The extension can also automatically start additional debug sessions
@@ -95,7 +95,7 @@ to the same `port`. This behaviour needs to be enabled with the
 ...
 ```
 
-Then you can start a debug session in vscode and launch:
+Then you can start a debug session in Visual Studio Code and launch:
 
 ```bash
 PERL5OPT=-d PERLDB_OPTS='RemotePort=localhost:5000' prove -l
@@ -114,43 +114,43 @@ not loaded, the extension creates a global watch expression `w $$` to
 the same effect, but that puts the debugger in trace mode, wich can
 slow down debugging considerably.
 
-When you start the perl process you want to debug, instead of `-d`,
+When you start the Perl process you want to debug, instead of `-d`,
 specify `-d:vscode`. If the extension starts the Perl process, set
 `execArgs: ["-d:vscode"]` in `launch.json`.
 
 ### Stability
 
-Tests matrix running between os and perl versions:
+Tests matrix running between OS and Perl versions:
 
-* OSX - perl 5.22
-* OSX - perl 5.20
-* OSX - perl 5.18
-* OSX - perl 5.16
-* OSX - perl 5.14
-* Linux - perl 5.22
-* Linux - perl 5.20
-* Linux - perl 5.18
-* Linux - perl 5.16
-* Linux - perl 5.14
-* Windows 64bit - Strawberry perl 5.24.1
-* Windows 64bit - Strawberry perl 5.22.3
-* Windows 64bit - Strawberry perl 5.20.3
-* Windows 64bit - Strawberry perl 5.18.4
-* Windows 64bit - Strawberry perl 5.16.3
+* OS X - Perl 5.22
+* OS X - Perl 5.20
+* OS X - Perl 5.18
+* OS X - Perl 5.16
+* OS X - Perl 5.14
+* Linux - Perl 5.22
+* Linux - Perl 5.20
+* Linux - Perl 5.18
+* Linux - Perl 5.16
+* Linux - Perl 5.14
+* Windows 64bit - Strawberry Perl 5.24.1
+* Windows 64bit - Strawberry Perl 5.22.3
+* Windows 64bit - Strawberry Perl 5.20.3
+* Windows 64bit - Strawberry Perl 5.18.4
+* Windows 64bit - Strawberry Perl 5.16.3
 * Windows 64bit - Activeperl 5.22.3.2204
 * Windows 64bit - Activeperl 5.24.1.2402
 
-Known issues on windows:
+Known issues on Windows:
 
 * "Restart" - `inhibit_exit` is not respected and will cause the debugger to stop
-* Variable inspection unstable - it's due to output inconsistency from the perl debugger
+* Variable inspection unstable - it's due to output inconsistency from the Perl debugger
 
 If you want to help test / debug read [DEBUGGING.md](DEBUGGING.md)
 
 ### Todo
 
-* Watching variables doesn't create actual expression watchers yet - need more api for actually maintaining the list of expressions to watch. I might be able to do a workaround for now.
-* Variable values on hover doesn't work all the time due to the lack of info, eg. `$obj->{ownObj}->{ownFoo}` hovering over `$obj` will work fine - but the children are not parsed correctly - to solve this we might need to parse the line of code.
+* Watching variables doesn't create actual expression watchers yet - need more APIs for actually maintaining the list of expressions to watch. I might be able to do a workaround for now.
+* Variable values on hover doesn't work all the time due to the lack of information, e.g. `$obj->{ownObj}->{ownFoo}` hovering over `$obj` will work fine - but the children are not parsed correctly - to solve this we might need to parse the line of code.
 
 ### Problems with `perl5db.pl` affecting this extension
 
@@ -165,7 +165,7 @@ Credits goes to Microsoft for making an awesome editor and a nice getting starte
 ### Reporting issues and feature requests
 
 I don't care about stars, but for everybodys sake:
-Please use github for tracking issues and feature requests, thanks!
+Please use GitHub for tracking issues and feature requests, thanks!
 
 When you report an issue, it can be very helpful to enable `debugRaw`
 in your launch configuration. When enabled, you should have an output
@@ -183,14 +183,14 @@ to track down version differences and portability problems.
 
 I do take pull requests for both documentation and code improvements!
 
-Please be aware that this plugin depends on the OS/vs code/perl distribution/perl5db.pl
-and none of these are perfect/consistent dependencies, therefor hard to track down.
-*Why I've added a fairly broad test matrix across os/perl distributions*
+Please be aware that this plugin depends on the OS/Visual Studio Code/Perl distribution/perl5db.pl,
+and none of these are perfect/consistent dependencies, therefore hard to track down.
+*Why I've added a fairly broad test matrix across OS/Perl distributions*
 
-Please keep in mind that I'm an ES developer, I don't know all
-the corners of perl - so any help is appriciated.
+Please keep in mind that I'm an ES developer. I don't know all
+the corners of Perl - so any help is appreciated.
 
-This project is using `semantic release` and `commitlint` for vs code extensions.
+This project is using `semantic release` and `commitlint` for Visual Studio Code extensions.
 *Commit messages should be formatted accordingly and should trigger correct*
 *versioning and automatic release / publish in the extension gallary.*
 
