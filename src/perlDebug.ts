@@ -695,14 +695,14 @@ export class PerlDebugSession extends LoggingDebugSession {
 				//
 				//      Quoted invalid expressions are strings and hence are interpolated according to their quotation marks e.g.
 				//
-				//         '$x +'       '$x +'
-				//         "$x +"       "1 +"
+				//         '$x +'       $s = '$x +'
+				//         "$x +"       $s = "1 +"
 				//
 				//      Special case for x'y. Old-style class reference lookalikes are interpreted as strings and not as x::y because it's extremely unlikely
 				//      that actually old-style class references are used by the user in the expression. This way strings with single-quotes will work
 				//      seamlessly (e.g. "There's" remains "There's" intead of becoming "There::s":)
 				//
-				//           x'y        "x'y"
+				//           x'y        $s = "x'y"
 				//
 				//  The above assignment ops provide perl programmers with an intuitive set of assignment operations for everyday use cases.
 
