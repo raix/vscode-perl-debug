@@ -251,7 +251,7 @@ describe('resolveVariable', () => {
         const variables = variableParser(data, 'local_0');
 		assert.equal(resolveVariable('8', 'HASH(0x7fd26896ecb0)', variables), '$obj->{8}');
 		assert.equal(resolveVariable('$bar', 'local_0', variables), '$bar');
-		assert.equal(resolveVariable('8', 'ARRAY(0x7fd269242a50)', variables), '@list1->[8]');
-		assert.equal(resolveVariable('ownFoo', 'HASH(0x7fd26892c6c0)', variables), '$obj->{ownObj}->{ownFoo}');
+		assert.equal(resolveVariable('8', 'ARRAY(0x7fd269242a50)', variables), '$list1[8]');
+		assert.equal(resolveVariable('ownFoo', 'HASH(0x7fd26892c6c0)', variables), '$obj->{ownObj}{ownFoo}');
 	});
 });
