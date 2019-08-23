@@ -1089,7 +1089,7 @@ export class perlDebuggerConnection extends EventEmitter {
 		res.data.forEach((line, i) => {
 			// > @ = DB::DB called from file 'lib/Module2.pm' line 5
 			// > . = Module2::test2() called from file 'test.pl' line 12
-			const m = line.match(/^(\S+) = (\S+) called from file \'(\S+)\' line ([0-9]+)$/);
+			const m = line.match(/^(\S+) = (\S+) called from file \'((?:(?:[a-zA-Z]:)?[\\/]+)?(?:[^\\/\r\n]+[\\/]+)*[^\\/\r\n]+)\' line ([0-9]+)$/);
 
 			if (m !== null) {
 				const [, v, caller, name, ln] = m;
