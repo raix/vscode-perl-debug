@@ -33,9 +33,9 @@ describe('multisession support', () => {
 
 	let mainDc: DebugClient;
 
-	beforeEach( () => {
+	beforeEach(async () => {
 		mainDc = new DebugClient('node', DEBUG_ADAPTER, 'perl');
-		return mainDc.start();
+		await mainDc.start();
 	});
 
 	afterEach(() => {

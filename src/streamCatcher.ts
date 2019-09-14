@@ -9,6 +9,7 @@
 import {Writable, Readable} from 'stream';
 import * as RX from './regExp';
 import { EventEmitter } from 'events';
+import { platform } from 'os';
 
 interface RequestTask {
 	command: string | null,
@@ -54,7 +55,7 @@ export class StreamCatcher extends EventEmitter {
 			// xxx: Windows restart workaround
 			// the windows perl debugger doesn't end the current restart request so we have to
 			// simulate a proper request end.
-			if ((/^win/.test(process.platform) && RX.restartWarning.test(firstLine)) || timeout) {
+			if ((platform() === "win32" && RX.restartWarning.test(firstLine)) || timeout) {
 
 				if (RX.restartWarning.test(firstLine)) {
 					this.logDebug('RAW> Waiting to fake end of restart request');

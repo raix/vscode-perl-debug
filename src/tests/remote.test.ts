@@ -62,9 +62,9 @@ describe('Perl debugger connection', () => {
 
 	let conn: perlDebuggerConnection;
 
-	beforeEach(() => {
+	beforeEach(async () => {
 		conn = new perlDebuggerConnection();
-		return conn.initializeRequest();
+		await conn.initializeRequest();
 	});
 
 	afterEach(() => {

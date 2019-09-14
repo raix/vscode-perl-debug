@@ -18,6 +18,8 @@ import { EventEmitter } from 'events';
 
 import { convertToPerlPath } from "./filepath";
 import { breakpointParser } from './breakpointParser';
+import { platform } from 'os';
+
 interface ResponseError {
 	filename: string,
 	ln: number,
@@ -718,7 +720,7 @@ export class perlDebuggerConnection extends EventEmitter {
 		this.rootPath = args.root;
 		this.filename = args.program;
 
-		this.logDebug(`Platform: ${process.platform}`);
+		this.logDebug(`Platform: ${platform()}`);
 
 		Object.keys(args.env || {}).forEach(key => {
 			this.logDebug(`env.${key}: "${args.env[key]}"`);
@@ -741,7 +743,7 @@ export class perlDebuggerConnection extends EventEmitter {
 			this.logOutput(`Error: Folder ${args.root} not found`);
 		}
 
-		this.logOutput(`Platform: ${process.platform}`);
+		this.logOutput(`Platform: ${platform()}`);
 
 		// This is the actual launch
 		await this.launchSession(args, session);
@@ -989,8 +991,8 @@ export class perlDebuggerConnection extends EventEmitter {
 		// The issue is due to differences between perl5db.pl versions, we should use that as a reference instead of
 		// using perl/os
 		const isBrokenPerl = (this.perlVersion >= '5.022000' || this.perlVersion < '5.018000');
-		const isBrokenLinux = process.platform === 'linux' && isBrokenPerl;
-		const isBrokenWindows = /^win/.test(process.platform) && isBrokenPerl;
+		const isBrokenLinux = platform() === 'linux' && isBrokenPerl;
+		const isBrokenWindows = platform() === "win32" && isBrokenPerl;
 		const fix = isBrokenLinux || isBrokenWindows;
 		return fix ? level - 1 : level;
 	}
