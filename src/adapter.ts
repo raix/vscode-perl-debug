@@ -16,6 +16,7 @@ import { PerlDebugSession, LaunchRequestArguments } from './perlDebug';
 
 import { EventEmitter } from 'events';
 
+import { breakpointParser } from './breakpointParser';
 interface ResponseError {
 	filename: string,
 	ln: number,
@@ -940,31 +941,8 @@ export class perlDebuggerConnection extends EventEmitter {
 
 	async getBreakPoints() {
 		const res = await this.request(`L b`);
-		const breakpoints = {};
 		this.logRequestResponse(res);
-		let currentFile = 'unknown';
-		res.data.forEach(line => {
-			if (RX.breakPoint.condition.test(line)) {
-				// Not relevant
-			} else if (RX.breakPoint.ln.test(line)) {
-				const lnX = line.match(RX.breakPoint.ln);
-				if (breakpoints[currentFile] && lnX) {
-					const ln = +lnX[1];
-					if (lnX[1] === `${ln}`) {
-						breakpoints[currentFile].push(ln);
-					}
-				}
-			} else if (RX.breakPoint.filename.test(line)) {
-				currentFile = line.replace(/:$/, '');
-				this.logDebug('GOT FILENAME:', currentFile);
-				if (typeof breakpoints[currentFile] === 'undefined') {
-					breakpoints[currentFile] = [];
-				}
-			} else {
-				// Dunno
-			}
-		});
-
+		const breakpoints = breakpointParser(res.data);
 		this.logDebug('BREAKPOINTS:', breakpoints);
 		return breakpoints;
 	}

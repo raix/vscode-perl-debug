@@ -12,7 +12,7 @@ export const breakPoint = {
 	condition: /^    break/,
 	// This looks like a filename eg.:
 	// 'test.pl:'
-	filename: /^([a-zA-Z.\_\-0-9\/]+)\:$/,
+	filename: /^(([a-zA-Z]:)?[a-zA-Z.\_ \-0-9\/]+)\:$/,
 	// Got a line nr eg.:
 	// '5:\tprint "Testing\\n";'
 	ln: /^ ([0-9]+):/,
