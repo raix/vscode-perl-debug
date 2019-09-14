@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { spawn, SpawnOptions } from 'child_process';
 import { Readable, Writable } from 'stream';
 import { EventEmitter } from 'events';
 import { DebugSession } from './session';
@@ -24,12 +24,12 @@ export class LocalSession extends EventEmitter implements DebugSession {
 			...( launchArgs.args || [] )
 		];
 
-		const spawnOptions = {
+		const spawnOptions: SpawnOptions = {
 			detached: true,
 			cwd: launchArgs.root || undefined,
 			env: {
-				COLUMNS: 80,
-				LINES: 25,
+				COLUMNS: '80',
+				LINES: '25',
 				TERM: 'dumb',
 				...launchArgs.env,
 			},

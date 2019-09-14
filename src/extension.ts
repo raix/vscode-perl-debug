@@ -248,8 +248,13 @@ class PerlDebugAdapterDescriptorFactory implements vscode.DebugAdapterDescriptor
 			}).listen(0);
 		}
 
+		const serverAddress = this.server.address();
+		if (typeof serverAddress === "string") {
+			throw new Error("Invalid server address");
+		}
+
 		// make VS Code connect to debug server
-		return new vscode.DebugAdapterServer(this.server.address().port);
+		return new vscode.DebugAdapterServer(serverAddress.port);
 	}
 
 	dispose() {

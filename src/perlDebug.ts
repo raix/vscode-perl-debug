@@ -358,10 +358,10 @@ export class PerlDebugSession extends LoggingDebugSession {
 		// the signal goes to the wrong process on a different machine.
 
 		const result = Promise.race<boolean>([
-			new Promise(resolve => {
+			new Promise<boolean>(resolve => {
 				process.once('SIGINT', () => resolve(true))
 			}),
-			new Promise((resolve, reject) => {
+			new Promise<boolean>((resolve, reject) => {
 				setTimeout(() => resolve(false), 200)
 			})
 		]);

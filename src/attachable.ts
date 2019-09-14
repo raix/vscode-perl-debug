@@ -48,7 +48,7 @@ export class Attachable extends EventEmitter {
 				client = socket;
 			} else {
 				// Already have a client connected, lets close and notify user
-				socket.destroy('Remote debugger already connected!');
+				socket.destroy(new Error('Remote debugger already connected!'));
 			}
 
 			base.on('data', data => {
@@ -83,8 +83,12 @@ export class Attachable extends EventEmitter {
 
 		// Listen to port make it remotely available
 		server.listen(0, 'localhost', () => {
-			this.port = server.address().port;
-			this.emit('listening', server.address());
+			const serverAddress = server.address();
+			if (typeof serverAddress === "string") {
+				throw new Error("Invalid server address");
+			}
+			this.port = serverAddress.port;
+			this.emit('listening', serverAddress);
 		});
 
 		server.on('error', data => {

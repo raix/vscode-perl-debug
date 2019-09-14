@@ -94,7 +94,7 @@ export class RemoteSession extends EventEmitter implements DebugSession {
 				} else {
 					// Already have a client connected, lets close and notify user
 					this.stdout.push(`Warning: Additional remote client tried to connect "${name}".`);
-					socket.destroy('Remote debugger already connected!');
+					socket.destroy(new Error('Remote debugger already connected!'));
 				}
 
 			}
@@ -132,7 +132,11 @@ export class RemoteSession extends EventEmitter implements DebugSession {
 
 		// Listen to port make it remotely available
 		server.listen(port, bindAddress, () => {
-			this.port = server.address().port;
+			const serverAddress = server.address();
+			if (typeof serverAddress === "string") {
+				throw new Error("Invalid server address");
+			}
+			this.port = serverAddress.port;
 			this.emit('listening', () => {});
 		});
 
@@ -162,7 +166,11 @@ export class RemoteSession extends EventEmitter implements DebugSession {
 		};
 		this.title = () => {
 			if (server && client) {
-				return `${server.address().address}:${server.address().port
+				const serverAddress = server.address();
+				if (typeof serverAddress === "string") {
+					throw new Error("Invalid server address");
+				}
+				return `${serverAddress.address}:${serverAddress.port
 					} serving ${client.remoteAddress}:${client.remotePort}`;
 			} else {
 				return "Inactive RemoteSession";
