@@ -29,9 +29,6 @@ environment:
     - install_perl: "%install_berry_perl%"
       install_padwalker: "%install_berry_padwalker%"
       version: "5.18.4_64"
-    - install_perl: "%install_berry_perl%"
-      install_padwalker: "%install_berry_padwalker%"
-      version: "5.16.3_64"
     # https://chocolatey.org/packages/ActivePerl
     - install_perl: "%install_active_perl%"
       install_padwalker: "%install_active_padwalker%"
