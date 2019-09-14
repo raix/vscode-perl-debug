@@ -3,7 +3,7 @@ os:
   - linux
   - osx
 node_js:
-  - "8"
+  - "10"
 perl:
   - "5.22"
   - "5.20"
