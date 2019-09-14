@@ -65,13 +65,13 @@ describe('Perl debug Adapter', () => {
 
 	let dc: DebugClient;
 
-	beforeEach( () => {
+	beforeEach(async () => {
 		dc = new DebugClient('node', DEBUG_ADAPTER, 'perl');
-		return dc.start();
+		await dc.start();
 	});
 
-	afterEach(() => {
-		dc.stop();
+	afterEach(async () => {
+		await dc.stop();
 		printLogFile();
 	});
 

@@ -55,8 +55,8 @@ describe('Perl debugger connection', () => {
 		await conn.initializeRequest();
 	});
 
-	afterEach(() => {
-		conn.destroy();
+	afterEach(async () => {
+		await conn.destroy();
 		conn = null;
 	});
 
