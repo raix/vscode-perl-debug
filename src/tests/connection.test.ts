@@ -5,6 +5,7 @@ import { perlDebuggerConnection, RequestResponse } from '../adapter';
 import { LocalSession } from '../localSession';
 import { LaunchRequestArguments } from '../perlDebug';
 import { convertToPerlPath } from "../filepath";
+import { platform } from 'os';
 
 const PROJECT_ROOT = Path.join(__dirname, '../../');
 const DATA_ROOT = Path.join(PROJECT_ROOT, 'src/tests/data/');
@@ -49,9 +50,9 @@ describe('Perl debugger connection', () => {
 
 	let conn: perlDebuggerConnection;
 
-	beforeEach(() => {
+	beforeEach(async () => {
 		conn = new perlDebuggerConnection();
-		return conn.initializeRequest();
+		await conn.initializeRequest();
 	});
 
 	afterEach(() => {
@@ -178,12 +179,12 @@ describe('Perl debugger connection', () => {
 	describe('getBreakPoints', () => {
 		it('Should work if no breakpoints are added', async () => {
 			await testLaunch(conn, FILE_TEST_PL, DATA_ROOT, []);
-			assert.deepEqual(await conn.getBreakPoints(), {});
+			expect(await conn.getBreakPoints()).toEqual({});
 		});
 		it('Should work if only one file is added', async () => {
 			await testLaunch(conn, FILE_TEST_PL, DATA_ROOT, []);
 			await conn.setBreakPoint(7);
-			assert.deepEqual(await conn.getBreakPoints(), { [FILE_TEST_PL]: [ 7 ] });
+			expect(await conn.getBreakPoints()).toEqual({ [FILE_TEST_PL]: [ 7 ] });
 		});
 		it('Should work if multiple breakpoints are added for one file', async () => {
 			await testLaunch(conn, FILE_TEST_PL, DATA_ROOT, []);
@@ -193,7 +194,7 @@ describe('Perl debugger connection', () => {
 			await conn.setBreakPoint(11);
 			await conn.setBreakPoint(12);
 			await conn.setBreakPoint(13);
-			assert.deepEqual(await conn.getBreakPoints(), { [FILE_TEST_PL]: [ 7, 8, 10, 11, 12, 13 ] });
+			expect(await conn.getBreakPoints()).toEqual({ [FILE_TEST_PL]: [ 7, 8, 10, 11, 12, 13 ] });
 		});
 		it('Should work if multiple breakpoints are added for multiple files', async () => {
 			await testLaunch(conn, FILE_TEST_PL, DATA_ROOT, []);
@@ -209,8 +210,7 @@ describe('Perl debugger connection', () => {
 			await conn.setBreakPoint(8);
 			// Let's try setting the same breakpoint twice...
 			await conn.setBreakPoint(5, FILE_MODULE);
-
-			assert.deepEqual(await conn.getBreakPoints(), { [FILE_TEST_PL]: [ 7, 8, 10, 11, 12, 13 ], [FILE_MODULE]: [ 4, 5 ] });
+			expect(await conn.getBreakPoints()).toEqual({ [FILE_TEST_PL]: [ 7, 8, 10, 11, 12, 13 ], [FILE_MODULE]: [ 4, 5 ] });
 		});
 	});
 
@@ -227,13 +227,13 @@ describe('Perl debugger connection', () => {
 			await conn.setBreakPoint(4, FILE_MODULE);
 			await conn.setBreakPoint(5, FILE_MODULE);
 
-			assert.deepEqual(await conn.getBreakPoints(), { [FILE_TEST_PL]: [ 7, 8, 10, 11, 12, 13 ], [FILE_MODULE]: [ 4, 5 ] });
+			expect(await conn.getBreakPoints()).toEqual({ [FILE_TEST_PL]: [ 7, 8, 10, 11, 12, 13 ], [FILE_MODULE]: [ 4, 5 ] });
 
 			await conn.clearBreakPoint(7);
 			await conn.clearBreakPoint(10, FILE_TEST_PL);
 			await conn.clearBreakPoint(5, FILE_MODULE);
 
-			assert.deepEqual(await conn.getBreakPoints(), { [FILE_TEST_PL]: [ 8, 11, 12, 13 ], [FILE_MODULE]: [ 4 ] });
+			expect(await conn.getBreakPoints()).toEqual({ [FILE_TEST_PL]: [ 8, 11, 12, 13 ], [FILE_MODULE]: [ 4 ] });
 
 		});
 	});
@@ -245,11 +245,11 @@ describe('Perl debugger connection', () => {
 			await conn.setBreakPoint(10, FILE_TEST_PL);
 			await conn.setBreakPoint(4, FILE_MODULE);
 
-			assert.deepEqual(await conn.getBreakPoints(), { [FILE_MODULE]: [ 4 ], [FILE_TEST_PL]: [ 7, 10 ] });
+			expect(await conn.getBreakPoints()).toEqual({ [FILE_MODULE]: [ 4 ], [FILE_TEST_PL]: [ 7, 10 ] });
 
 			await conn.clearAllBreakPoints();
 
-			assert.deepEqual(await conn.getBreakPoints(), { });
+			expect(await conn.getBreakPoints()).toEqual({});
 
 		});
 	});
@@ -325,12 +325,15 @@ describe('Perl debugger connection', () => {
 				assert.equal(res.ln, 7);
 				res = await conn.next();
 				assert.equal(res.ln, 8);
-				res = await conn.restart();
-				if (/^win/.test(process.platform)) {
+				if (platform() === "win32") {
 					// xxx: On windows we ned to respawn the debugger
 					// it might be "inhibit_exit" is not working on windows
 					// causing us to workaround...
+					// Docs:
+					// Restart the debugger by exec()ing a new session. We try to maintain your history across this, but internal settings and command-line options may be lost.
+					// The following setting are currently preserved: history, breakpoints, actions, debugger options, and the Perl command-line options -w, -I, and -e.
 				} else {
+					res = await conn.restart();
 					assert.equal(res.ln, 7);
 				}
 			});
