@@ -9,6 +9,7 @@ import * as fs from 'fs';
 import {DebugClient} from 'vscode-debugadapter-testsupport';
 import {DebugProtocol} from 'vscode-debugprotocol';
 import { Subject } from 'await-notify';
+import { platform } from 'os';
 
 describe('Perl debug Adapter', () => {
 
@@ -153,7 +154,7 @@ describe('Perl debug Adapter', () => {
 
 	describe('pause', () => {
 
-		it('should be able to pause programs', async () => {
+		(platform() === "win32" ? it.skip : it)('should be able to pause programs', async () => {
 			const PROGRAM = Path.join(DATA_ROOT, FILE_LONG_RUNNING_PL);
 
 			// NOTE(bh): This test is probably expected to fail when test
@@ -195,7 +196,7 @@ describe('Perl debug Adapter', () => {
 				'must have gone at least twice through the loop'
 			);
 
-		});
+		}, 10000);
 	});
 
 	describe('setFunctionBreakpoints', () => {
