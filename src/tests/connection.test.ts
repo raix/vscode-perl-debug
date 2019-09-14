@@ -4,13 +4,14 @@ import * as Path from 'path';
 import { perlDebuggerConnection, RequestResponse } from '../adapter';
 import { LocalSession } from '../localSession';
 import { LaunchRequestArguments } from '../perlDebug';
+import { convertToPerlPath } from "../filepath";
 
 const PROJECT_ROOT = Path.join(__dirname, '../../');
 const DATA_ROOT = Path.join(PROJECT_ROOT, 'src/tests/data/');
 
 const FILE_TEST_PL = 'slow_test.pl';
 const FILE_TEST_NESTED_PL = 'test_nested.pl';
-const FILE_MODULE = Path.resolve(DATA_ROOT, 'Module.pm');
+const FILE_MODULE = convertToPerlPath('Module.pm', DATA_ROOT);
 const FILE_NESTED_MODULE = 'Module2.pm';
 const FILE_FICTIVE = 'Fictive.pl';
 const FILE_BROKEN_SYNTAX = 'broken_syntax.pl';

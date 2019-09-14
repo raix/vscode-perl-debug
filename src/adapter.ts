@@ -16,6 +16,7 @@ import { PerlDebugSession, LaunchRequestArguments } from './perlDebug';
 
 import { EventEmitter } from 'events';
 
+import { convertToPerlPath } from "./filepath";
 import { breakpointParser } from './breakpointParser';
 interface ResponseError {
 	filename: string,
@@ -901,9 +902,7 @@ export class perlDebuggerConnection extends EventEmitter {
 		// underlying issue here is that we cannot always use resolved
 		// paths because we do not know what a relative path is relative
 		// to.
-		const cleanFilename = filename
-			.replace(/\\/g, '/')
-			.replace(/^[..\/\\]+/g, '');
+		const cleanFilename = convertToPerlPath(filename);
 
 		// await this.request(`print STDERR "${cleanFilename}"`);
 		const res = await this.request(`f ${cleanFilename}`);
