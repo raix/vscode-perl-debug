@@ -1140,6 +1140,7 @@ export class perlDebuggerConnection extends EventEmitter {
 		if (/^[0-9]+\.?([0-9]?)+$/.test(version)) {
 			return version;
 		}
+		return JSON.stringify(res.data);
 	}
 
 	async getDebuggerPid(): Promise<number> {

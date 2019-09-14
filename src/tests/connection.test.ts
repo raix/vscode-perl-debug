@@ -291,6 +291,7 @@ describe('Perl debugger connection', () => {
 		describe('getPadwalkerVersion', () => {
 			it('should return version of installed padwalker', async () => {
 				await testLaunch(conn, FILE_TEST_PL, DATA_ROOT, []);
+				assert(/^[0-9]+\.?([0-9]?)+$/.test(conn.padwalkerVersion), `Recieved: [${conn.padwalkerVersion}]`)
 				expect(conn.padwalkerVersion).toBeDefined();
 				expect(conn.padwalkerVersion.length).toBeGreaterThan(1);
 				expect(Number(conn.padwalkerVersion)).toBeGreaterThan(1);
