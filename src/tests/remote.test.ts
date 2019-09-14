@@ -9,72 +9,75 @@ const DATA_ROOT = Path.join(PROJECT_ROOT, 'src/tests/data/');
 
 const FILE_TEST_PL = 'slow_test.pl';
 
-function setupDebugger(
-	conn: perlDebuggerConnection,
-	file: string,
-	cwd: string,
-	args: string[],
-	launchOptions: any = {}
-): [Promise<RequestResponse>, LocalSession] {
-
-	// Not to conflict with VS Code jest ext
-	const port = 5000 + Math.round(Math.random()*100);
-
-	const launchArgs: LaunchRequestArguments = {
-		program: FILE_TEST_PL,
-		root: DATA_ROOT,
-		execArgs: args,
-		port: port,
-		console: 'remote',
-		exec: 'perl',
-		env: {
-			PATH: process.env.PATH || '',
-			PERL5LIB: process.env.PERL5LIB || '',
-		},
-		...launchOptions
-	};
-
-	// Listen for remote debugger session
-	const server = conn.launchRequest(
-		launchArgs,
-		null
-	);
-
-	// Start "remote" debug session
-	const local = new LocalSession({
-		exec: 'perl',
-		execArgs: [],
-		program: FILE_TEST_PL,
-		root: DATA_ROOT,
-		args: launchArgs.args,
-		console: 'none',
-		env: {
-			 // Trigger remote debugger
-			PERLDB_OPTS: `RemotePort=localhost:${port}`,
-		},
-	});
-
-	return [server, local];
-
-}
-
 describe('Perl debugger connection', () => {
 
 	let conn: perlDebuggerConnection;
+	const trackedSessions: LocalSession[] = [];
 
 	beforeEach(async () => {
 		conn = new perlDebuggerConnection();
 		await conn.initializeRequest();
 	});
 
-	afterEach(() => {
-		conn.destroy();
+	afterEach(async () => {
+		await conn.destroy();
 		conn = null;
+
+		// Clean up tracked sessions
+		while (trackedSessions.length > 0) {
+			trackedSessions.pop().kill();
+		}
 	});
+
+	function setupDebugger(
+		conn: perlDebuggerConnection,
+		file: string,
+		cwd: string,
+		args: string[],
+		launchOptions: any = {}
+	): Promise<RequestResponse> {
+
+		// Not to conflict with VS Code jest ext
+		const port = 5000 + Math.round(Math.random()*100);
+
+		const launchArgs: LaunchRequestArguments = {
+			program: FILE_TEST_PL,
+			root: DATA_ROOT,
+			execArgs: args,
+			port: port,
+			console: 'remote',
+			exec: 'perl',
+			env: {
+				PATH: process.env.PATH || '',
+				PERL5LIB: process.env.PERL5LIB || '',
+			},
+			...launchOptions
+		};
+
+		// Start "remote" debug session
+		trackedSessions.push(new LocalSession({
+			exec: 'perl',
+			execArgs: [],
+			program: FILE_TEST_PL,
+			root: DATA_ROOT,
+			args: launchArgs.args,
+			console: 'none',
+			env: {
+				 // Trigger remote debugger
+				PERLDB_OPTS: `RemotePort=localhost:${port}`,
+			},
+		}));
+
+		// Listen for remote debugger session
+		return conn.launchRequest(
+			launchArgs,
+			null
+		);
+	}
 
 	it('Should be able to get remote expression values from ' + FILE_TEST_PL, async () => {
 
-		const [ server, local ] = setupDebugger(
+		const server = setupDebugger(
 			conn, FILE_TEST_PL, DATA_ROOT, [], {
 				args: ['foo=bar', 'test=ok'],
 			}
@@ -86,10 +89,6 @@ describe('Perl debugger connection', () => {
 		// Ask Perl for the scripts command line arguments
 		const expressionValue = await conn.getExpressionValue('"@ARGV"');
 
-		// Cleanup
-		local.kill();
-		conn.perlDebugger.kill();
-
 		assert.equal(expressionValue, 'foo=bar test=ok');
 		assert.equal(res.finished, false);
 		assert.equal(res.exception, false);
@@ -98,7 +97,7 @@ describe('Perl debugger connection', () => {
 
 	it('Should be able to get loaded scripts and their source code from' + FILE_TEST_PL, async () => {
 
-		const [ server, local ] = setupDebugger(
+		const server = setupDebugger(
 			conn, FILE_TEST_PL, DATA_ROOT, []
 		);
 
@@ -121,8 +120,5 @@ describe('Perl debugger connection', () => {
 			sourceCode.indexOf('Hello module') > 0,
 			'Module.pm source code contains "Hello module"'
 		);
-
 	});
-
-
 });
