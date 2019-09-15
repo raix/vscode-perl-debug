@@ -14,6 +14,7 @@ before_install:
     # install perlbrew on osx
     - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
           curl -L http://install.perlbrew.pl | bash;
+          source ~/perl5/perlbrew/etc/bashrc;
           perlbrew install $TRAVIS_PERL_VERSION;
           perlbrew switch $TRAVIS_PERL_VERSION;
           perlbrew install-cpanm;
