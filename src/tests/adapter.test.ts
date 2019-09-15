@@ -12,6 +12,7 @@ import { Subject } from 'await-notify';
 import { platform } from 'os';
 
 describe('Perl debug Adapter', () => {
+	jest.setTimeout(10000);
 
 	const DEBUG_ADAPTER = './out/debugAdapter.js';
 
