@@ -129,7 +129,7 @@ describe('Perl debug Adapter', () => {
 					console: 'none'
 				})),
 			]);
-		});
+		}, 10000);
 
 		it('should stop on entry', async () => {
 
