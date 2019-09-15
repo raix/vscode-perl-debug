@@ -16,11 +16,9 @@ before_install:
           curl -L http://install.perlbrew.pl | bash;
           source ~/perl5/perlbrew/etc/bashrc;
           which perlbrew;
-          # perlbrew available;
+          perlbrew init;
           perlversion=$(perlbrew available | grep -m 1 "$TRAVIS_PERL_VERSION." | xargs);
-          echo "Latest perl version $perlversion";
           perlbrew install $perlversion --notest -j 5 --switch --noman;
-          # perlbrew switch $perlversion;
           perlbrew install-cpanm;
       fi
     # end of perl version install
@@ -41,6 +39,7 @@ cache:
   bundler: true
   directories:
   - node_modules # NPM packages
+  - $HOME/perl5/perlbrew # Perl distributions
 install:
     - travis_retry yarn
 stages:
