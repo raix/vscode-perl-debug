@@ -2,6 +2,7 @@ language: perl
 os:
   - linux
   - osx
+dist: trusty
 perl:
   - "5.22"
   - "5.20"
