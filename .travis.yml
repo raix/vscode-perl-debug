@@ -18,7 +18,7 @@ before_install:
           which perlbrew;
           perlbrew available;
           perlversion=$(perlbrew available | grep -m 1 "$TRAVIS_PERL_VERSION." | xargs);
-          echo "Latest perl version $perlversion"
+          echo "Latest perl version $perlversion";
           perlbrew install $perlversion;
           perlbrew switch $perlversion;
           perlbrew install-cpanm;
