@@ -9,6 +9,7 @@ perl:
   - "5.16"
   - "5.14"
 before_install:
+    - perlbrew list
     - nvm install $(cat .nvmrc)
     - nvm use $(cat .nvmrc)
     - perl --version
