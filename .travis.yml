@@ -11,9 +11,13 @@ perl:
   - "5.14"
 sudo: false
 before_install:
-    - git clone git://github.com/travis-perl/helpers ~/travis-perl-helpers
-    - source ~/travis-perl-helpers/init
-    - build-perl
+    # install perlbrew on osx
+    - if [[ "$TRAVIS_OS_NAME" == "osx" ]]
+          curl -L http://install.perlbrew.pl | bash
+          perlbrew install $TRAVIS_PERL_VERSION
+          perlbrew switch $TRAVIS_PERL_VERSION
+          perlbrew install-cpanm
+      fi
     # end of perl version install
     - echo $TRAVIS_PERL_VERSION
     - nvm install $(cat .nvmrc)
