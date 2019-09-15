@@ -18,8 +18,8 @@ before_install:
           source ~/perl5/perlbrew/etc/bashrc;
           which perlbrew;
           perlbrew init;
-          perlversion=$(perlbrew available | grep -m 1 "$TRAVIS_PERL_VERSION." | xargs);
-          echo "Resolved to version $perlversion"
+          perlversion=$(perlbrew available | grep -m 1 "$TRAVIS_PERL_VERSION." | xargs | grep -o "[0-9.]\+");
+          echo "Resolved to version $perlversion";
           perlbrew install $perlversion --notest -j 5 --switch --noman;
           perlbrew use $perlversion;
           perlbrew install-cpanm;
