@@ -12,11 +12,11 @@ perl:
 sudo: false
 before_install:
     # install perlbrew on osx
-    - if [[ "$TRAVIS_OS_NAME" == "osx" ]]
-          curl -L http://install.perlbrew.pl | bash
-          perlbrew install $TRAVIS_PERL_VERSION
-          perlbrew switch $TRAVIS_PERL_VERSION
-          perlbrew install-cpanm
+    - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+          curl -L http://install.perlbrew.pl | bash;
+          perlbrew install $TRAVIS_PERL_VERSION;
+          perlbrew switch $TRAVIS_PERL_VERSION;
+          perlbrew install-cpanm;
       fi
     # end of perl version install
     - echo $TRAVIS_PERL_VERSION
