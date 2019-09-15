@@ -19,6 +19,7 @@ before_install:
           perlbrew init;
           perlversion=$(perlbrew available | grep -m 1 "$TRAVIS_PERL_VERSION." | xargs);
           perlbrew install $perlversion --notest -j 5 --switch --noman;
+          perlbrew use $perlversion
           perlbrew install-cpanm;
       fi
     # end of perl version install
