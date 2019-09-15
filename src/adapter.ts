@@ -114,7 +114,7 @@ function absoluteFilename(root: string, filename: string): string {
 	return join(root, filename);
 }
 
-export class perlDebuggerConnection extends EventEmitter {
+export class PerlDebuggerConnection extends EventEmitter {
 	public debug: boolean = false;
 	public perlDebugger: DebugSession;
 	public debuggee?: DebugSession;
@@ -122,6 +122,7 @@ export class perlDebuggerConnection extends EventEmitter {
 	public streamCatcher: StreamCatcher;
 	public perlVersion: PerlVersion;
 	public padwalkerVersion: string;
+	public scopeBaseLevel: number = -1;
 	public develVscodeVersion?: string;
 	public hostname?: string;
 	public commandRunning: string = '';
@@ -883,6 +884,14 @@ export class perlDebuggerConnection extends EventEmitter {
 			// inform the user of a missing dependency install of PadWalker
 		}
 
+		if (this.padwalkerVersion.length > 0) {
+			try {
+				this.scopeBaseLevel = await this.getVariableBaseLevel();
+			} catch (ignore) {
+				// ignore the error
+			}
+		}
+
 		await this.installSubroutines();
 
 		return this.parseResponse(data);
@@ -987,24 +996,13 @@ export class perlDebuggerConnection extends EventEmitter {
 		return res.data.pop();
 	}
 
-	private fixLevel(level: number) {
-		// xxx: There seem to be an issue in perl debug or PadWalker in/outside these versions on linux
-		// The issue is due to differences between perl5db.pl versions, we should use that as a reference instead of
-		// using perl/os
-		const isBrokenPerl = (this.perlVersion.version >= '5.022000' || this.perlVersion.version < '5.018000');
-		const isBrokenLinux = platform() === 'linux' && isBrokenPerl;
-		const isBrokenWindows = platform() === "win32" && isBrokenPerl;
-		const fix = isBrokenLinux || isBrokenWindows;
-		return fix ? level - 1 : level;
-	}
-
 	/**
 	 * Prints out a nice indent formatted list of variables with
 	 * array references resolved.
 	 */
 	async requestVariableOutput(level: number) {
 		const variables: Variable[] = [];
-		const res = await this.request(`y ${this.fixLevel(level)}`);
+		const res = await this.request(`y ${level + this.scopeBaseLevel - 1}`);
 		const result = [];
 
 		if (/^Not nested deeply enough/.test(res.data[0])) {
@@ -1142,6 +1140,20 @@ export class perlDebuggerConnection extends EventEmitter {
 			return version;
 		}
 		return JSON.stringify(res.data);
+	}
+
+	async getVariableBaseLevel() {
+		const limitOfScope = /^Not nested deeply enough/;
+		const {data: [level1]} = await this.request('y 1'); // 5.22
+		const {data: [level2]} = await this.request('y 2'); // 5.20
+		if (limitOfScope.test(level1)) {
+			return 0;
+		}
+		if (limitOfScope.test(level2)) {
+			return 1;
+		}
+		// apparently we didn't find the base level?
+		return -1;
 	}
 
 	async getDebuggerPid(): Promise<number> {

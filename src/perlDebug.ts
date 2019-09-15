@@ -13,7 +13,7 @@ import {readFileSync} from 'fs';
 import {basename, dirname, join} from 'path';
 import {spawn, ChildProcess} from 'child_process';
 const { Subject } = require('await-notify');
-import { perlDebuggerConnection, RequestResponse } from './adapter';
+import { PerlDebuggerConnection, RequestResponse } from './adapter';
 import { variableType, ParsedVariable, ParsedVariableScope, resolveVariable } from './variableParser';
 
 /**
@@ -64,12 +64,12 @@ export class PerlDebugSession extends LoggingDebugSession {
 
 	public dcSupportsRunInTerminal: boolean = false;
 
-	private adapter: perlDebuggerConnection;
+	private adapter: PerlDebuggerConnection;
 
 	public constructor() {
 		super('perl_debugger.log');
 
-		this.adapter = new perlDebuggerConnection();
+		this.adapter = new PerlDebuggerConnection();
 
 		this.setDebuggerLinesStartAt1(false);
 		this.setDebuggerColumnsStartAt1(false);

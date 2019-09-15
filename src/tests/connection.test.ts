@@ -1,7 +1,7 @@
 import assert = require('assert');
 import asyncAssert from './asyncAssert';
 import * as Path from 'path';
-import { perlDebuggerConnection, RequestResponse } from '../adapter';
+import { PerlDebuggerConnection, RequestResponse } from '../adapter';
 import { LocalSession } from '../localSession';
 import { LaunchRequestArguments } from '../perlDebug';
 import { convertToPerlPath } from "../filepath";
@@ -21,7 +21,7 @@ const FILE_PRINT_ARGUMENTS = 'print_arguments.pl';
 const FILE_FAST_TEST_PL = 'fast_test.pl';
 
 async function testLaunch(
-	conn: perlDebuggerConnection,
+	conn: PerlDebuggerConnection,
 	filename: string,
 	cwd: string,
 	args: string[] = [],
@@ -48,10 +48,10 @@ async function testLaunch(
 
 describe('Perl debugger connection', () => {
 
-	let conn: perlDebuggerConnection;
+	let conn: PerlDebuggerConnection;
 
 	beforeEach(async () => {
-		conn = new perlDebuggerConnection();
+		conn = new PerlDebuggerConnection();
 		await conn.initializeRequest();
 	});
 
@@ -71,6 +71,13 @@ describe('Perl debugger connection', () => {
 			expect(conn.perlVersion.major).toBeGreaterThanOrEqual(0);
 			expect(conn.perlVersion.minor).toBeGreaterThanOrEqual(0);
 			expect(conn.perlVersion.patch).toBeGreaterThanOrEqual(0);
+		});
+	});
+
+	describe('scopeBaseLevel', () => {
+		it('should be found', async () => {
+			const res = await testLaunch(conn, FILE_TEST_PL, DATA_ROOT, []);
+			expect(conn.scopeBaseLevel).toBeGreaterThanOrEqual(0);
 		});
 	});
 

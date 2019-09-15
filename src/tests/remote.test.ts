@@ -1,6 +1,6 @@
 import assert = require('assert');
 import * as Path from 'path';
-import { perlDebuggerConnection, RequestResponse } from '../adapter';
+import { PerlDebuggerConnection, RequestResponse } from '../adapter';
 import { LocalSession } from '../localSession';
 import { LaunchRequestArguments } from '../perlDebug';
 
@@ -11,11 +11,11 @@ const FILE_TEST_PL = 'slow_test.pl';
 
 describe('Perl debugger connection', () => {
 
-	let conn: perlDebuggerConnection;
+	let conn: PerlDebuggerConnection;
 	const trackedSessions: LocalSession[] = [];
 
 	beforeEach(async () => {
-		conn = new perlDebuggerConnection();
+		conn = new PerlDebuggerConnection();
 		await conn.initializeRequest();
 	});
 
@@ -30,7 +30,7 @@ describe('Perl debugger connection', () => {
 	});
 
 	function setupDebugger(
-		conn: perlDebuggerConnection,
+		conn: PerlDebuggerConnection,
 		file: string,
 		cwd: string,
 		args: string[],
