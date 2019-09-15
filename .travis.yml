@@ -22,7 +22,7 @@ before_install:
           echo "Resolved to version $perlversion";
           perlbrew install $perlversion --notest -j 5 --switch --noman;
           perlbrew use $perlversion;
-          perlbrew install-cpanm;
+          perlbrew install-cpanm --force;
       fi
     # end of perl version install
     - echo $TRAVIS_PERL_VERSION
