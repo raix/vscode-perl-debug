@@ -11,9 +11,7 @@ perl:
   - "5.14"
 before_install:
     - echo $TRAVIS_PERL_VERSION
-    - echo $PERLBREW_PERL
     - perlbrew list
-    - if [ $TRAVIS_PERL_VERSION -ne $PERLBREW_PERL ]; then exit 1; fi
     - nvm install $(cat .nvmrc)
     - nvm use $(cat .nvmrc)
     - perl --version

@@ -19,6 +19,7 @@ import { EventEmitter } from 'events';
 import { convertToPerlPath } from "./filepath";
 import { breakpointParser } from './breakpointParser';
 import { platform } from 'os';
+import { PerlVersion } from './perlversion';
 
 interface ResponseError {
 	filename: string,
@@ -119,7 +120,7 @@ export class perlDebuggerConnection extends EventEmitter {
 	public debuggee?: DebugSession;
 
 	public streamCatcher: StreamCatcher;
-	public perlVersion: string;
+	public perlVersion: PerlVersion;
 	public padwalkerVersion: string;
 	public develVscodeVersion?: string;
 	public hostname?: string;
@@ -869,7 +870,7 @@ export class perlDebuggerConnection extends EventEmitter {
 
 		try {
 			// Get the version just after
-			this.perlVersion = await this.getPerlVersion();
+			this.perlVersion = new PerlVersion(await this.getPerlVersion());
 		} catch(ignore) {
 			// xxx: We have to ignore this error because it would intercept the true
 			// error on windows
@@ -990,7 +991,7 @@ export class perlDebuggerConnection extends EventEmitter {
 		// xxx: There seem to be an issue in perl debug or PadWalker in/outside these versions on linux
 		// The issue is due to differences between perl5db.pl versions, we should use that as a reference instead of
 		// using perl/os
-		const isBrokenPerl = (this.perlVersion >= '5.022000' || this.perlVersion < '5.018000');
+		const isBrokenPerl = (this.perlVersion.version >= '5.022000' || this.perlVersion.version < '5.018000');
 		const isBrokenLinux = platform() === 'linux' && isBrokenPerl;
 		const isBrokenWindows = platform() === "win32" && isBrokenPerl;
 		const fix = isBrokenLinux || isBrokenWindows;

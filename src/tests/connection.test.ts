@@ -60,6 +60,20 @@ describe('Perl debugger connection', () => {
 		conn = null;
 	});
 
+	describe('perlversion', () => {
+		(process.env.TRAVIS === "true" ? it : it.skip)('should match version on travis', async () => {
+			const res = await testLaunch(conn, FILE_TEST_PL, DATA_ROOT, []);
+			expect(conn.perlVersion.majorMinor).toBe(process.env.TRAVIS_PERL_VERSION);
+		});
+
+		it('should be a version string', async () => {
+			const res = await testLaunch(conn, FILE_TEST_PL, DATA_ROOT, []);
+			expect(conn.perlVersion.major).toBeGreaterThanOrEqual(0);
+			expect(conn.perlVersion.minor).toBeGreaterThanOrEqual(0);
+			expect(conn.perlVersion.patch).toBeGreaterThanOrEqual(0);
+		});
+	});
+
 	describe('launchRequest', () => {
 		it('Should be able to connect and launch ' + FILE_TEST_PL, async () => {
 			const res = await testLaunch(conn, FILE_TEST_PL, DATA_ROOT, []);
