@@ -66,6 +66,7 @@ describe('Perl debug Adapter', () => {
 
 	beforeEach(async () => {
 		dc = new DebugClient('node', DEBUG_ADAPTER, 'perl');
+		dc.defaultTimeout = 60000;
 		await dc.start();
 	});
 
