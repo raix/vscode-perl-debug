@@ -68,7 +68,7 @@
     "compile": "tsc",
     "tslint": "tslint ./src/**/*.ts",
     "watch": "tsc -w",
-    "test": "jest",
+    "test": "jest --testTimeout=60000",
     "test:w": "jest --watch",
     "postinstall": "node ./node_modules/vscode/bin/install",
     "test2": "cd src/tests && electron-mocha ./test.js",
