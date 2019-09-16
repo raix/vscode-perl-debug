@@ -12,7 +12,8 @@ import { Subject } from 'await-notify';
 import { platform } from 'os';
 
 describe('Perl debug Adapter', () => {
-	jest.setTimeout(10000);
+	const timeout = 10000;
+	jest.setTimeout(timeout);
 
 	const DEBUG_ADAPTER = './out/debugAdapter.js';
 
@@ -130,7 +131,7 @@ describe('Perl debug Adapter', () => {
 					console: 'none'
 				})),
 			]);
-		}, 10000);
+		}, timeout);
 
 		it('should stop on entry', async () => {
 
@@ -150,7 +151,7 @@ describe('Perl debug Adapter', () => {
 			}));
 
 			await dc.assertStoppedLocation('entry', { line: ENTRY_LINE } );
-		});
+		}, timeout);
 	});
 
 	describe('pause', () => {
@@ -197,7 +198,7 @@ describe('Perl debug Adapter', () => {
 				'must have gone at least twice through the loop'
 			);
 
-		}, 10000);
+		}, timeout);
 	});
 
 	describe('setFunctionBreakpoints', () => {
@@ -263,7 +264,7 @@ describe('Perl debug Adapter', () => {
 				hitFunctionBreakpoint
 			]);
 
-		});
+		}, timeout);
 	});
 
 	// xxx: Need to figure out this test

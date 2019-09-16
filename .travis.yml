@@ -52,7 +52,7 @@ stages:
 
 script:
     - yarn tslint
-    - yarn test-ci
+    - yarn test
 jobs:
   include:
     - stage: release

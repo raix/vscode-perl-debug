@@ -68,7 +68,6 @@
     "compile": "tsc",
     "tslint": "tslint ./src/**/*.ts",
     "watch": "tsc -w",
-    "test-ci": "CI=true jest --runInBand",
     "test": "jest",
     "test:w": "jest --watch",
     "postinstall": "node ./node_modules/vscode/bin/install",
