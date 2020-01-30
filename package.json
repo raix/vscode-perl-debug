@@ -57,7 +57,7 @@
     "jest": "24.9.0",
     "semantic-release": "15.13.24",
     "semantic-release-vsce": "2.2.8",
-    "ts-jest": "24.1.0",
+    "ts-jest": "25.1.0",
     "tslint": "5.20.0",
     "typescript": "3.5.3",
     "vscode": "1.1.36",
