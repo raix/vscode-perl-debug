@@ -1,8 +1,3 @@
-/*---------------------------------------------------------------------------------------------
- *  Copyright (c) Microsoft Corporation. All rights reserved.
- *  Licensed under the MIT License. See License.txt in the project root for license information.
- *--------------------------------------------------------------------------------------------*/
-
 import assert = require('assert');
 import * as Path from 'path';
 import * as fs from 'fs';
@@ -27,6 +22,7 @@ describe('Perl debug Adapter', () => {
 	const FILE_PRINT_ARGUMENTS = 'print_arguments.pl';
 	const FILE_FAST_TEST_PL = 'fast_test.pl';
 	const FILE_LONG_RUNNING_PL = 'long_running.pl';
+	const FILE_VARS_TEST_PL = "vars_test.pl";
 
 	const PERL_DEBUG_LOG = 'perl_debugger.log';
 
@@ -40,6 +36,11 @@ describe('Perl debug Adapter', () => {
 		program: Path.join(DATA_ROOT, FILE_FAST_TEST_PL),
 		inc: [],
 		args: [],
+		env: {
+			// User perlbrew installations should take priority over system
+			// Perl installations.
+			PATH: process.env.PATH,
+		},
 		stopOnEntry: false,
 		console: 'none',
 		trace: false,
@@ -61,6 +62,29 @@ describe('Perl debug Adapter', () => {
 		}
 	};
 
+	const getScopedVars = async (
+		dc: DebugClient,
+		frameId: number,
+		name: string,
+	): Promise<DebugProtocol.VariablesResponse> => {
+
+		const st = await dc.stackTraceRequest({
+			threadId: undefined
+		});
+
+		const scopes = await dc.scopesRequest({
+			frameId: st.body.stackFrames[frameId].id
+		});
+
+		const vars = await dc.variablesRequest({
+			variablesReference: scopes.body.scopes.filter(
+				x => x.name === name
+			)[0].variablesReference
+		});
+
+		return vars;
+
+	};
 
 	let dc: DebugClient;
 
@@ -152,6 +176,97 @@ describe('Perl debug Adapter', () => {
 		});
 	});
 
+	describe('variables', () => {
+
+		it('variable retrieval should work', async () => {
+
+			await dc.launch(Configuration({
+				program: FILE_VARS_TEST_PL,
+				stopOnEntry: true
+			}));
+
+			const globalVars = await getScopedVars(dc, 0, 'Global');
+
+			const perlVer = globalVars.body.variables.filter(
+				x => x.name === '$]'
+			)[0];
+
+			assert.ok(/^5\./.test(perlVer.value));
+
+			const bpRespone = await dc.setBreakpointsRequest({
+				source: {
+					path: FILE_VARS_TEST_PL,
+				},
+				lines: [17],
+			});
+
+			assert(bpRespone.success, 'set breakpoint');
+
+			await Promise.all([
+				dc.continueRequest({ threadId: undefined }),
+				dc.assertStoppedLocation('breakpoint', {
+					line: 17
+				})
+			]);
+
+			const lexicals1 = async () => {
+
+				const lexicalVars = await getScopedVars(dc, 0, 'Lexical');
+
+				assert.ok(
+					lexicalVars.body.variables.filter(
+						x => x.name === '$PKG_MY' && x.value.indexOf('PKG_MY') > 0
+					).length > 0,
+					'can see a PKG_MY variable'
+				);
+
+				assert.ok(
+					lexicalVars.body.variables.filter(
+						x => x.name === '$arg' && x.value.indexOf('inner') > 0
+					).length > 0,
+					'can see a arg variable'
+				);
+
+				assert.ok(
+					lexicalVars.body.variables.filter(
+						x => x.name === '$outer_my' && x.value.indexOf('outer_my') > 0
+					).length === 0,
+					'cannot see a $outer_my variable from other stack frame'
+				);
+
+				const globalVars = await getScopedVars(dc, 0, 'Global');
+
+				assert.ok(
+					globalVars.body.variables.filter(
+						x => x.name === '$/'
+						&&
+						x.value.toLowerCase().indexOf('20ac') > 0
+					).length > 0,
+					'can see a localised $/ variable set to EURO sign'
+				);
+
+			};
+
+			const lexicals2 = async () => {
+
+				const lexicalVars = await getScopedVars(dc, 1, 'Lexical');
+
+				assert.ok(
+					lexicalVars.body.variables.filter(
+						x => x.name === '$outer_my' && x.value.indexOf('outer_my') > 0
+					).length > 0,
+					'can see a $outer_my variable in middle stack frame'
+				);
+
+			};
+
+			await lexicals1();
+			await lexicals2();
+
+		});
+
+	});
+
 	describe('pause', () => {
 
 		(platform() === "win32" ? it.skip : it)('should be able to pause programs', async () => {
@@ -172,7 +287,7 @@ describe('Perl debug Adapter', () => {
 			// NOTE(bh): Perl's built-in `sleep` function only supports
 			// integer resolution sleeps, so this test is a bit slow.
 
-			await new Promise(resolve => setTimeout(resolve, 2200));
+			await new Promise(resolve => setTimeout(resolve, 1200));
 
 			await dc.pauseRequest({
 				threadId: undefined,
@@ -192,8 +307,8 @@ describe('Perl debug Adapter', () => {
 			});
 
 			assert.ok(
-				parseInt(result.body.result) > 3,
-				'must have gone at least twice through the loop'
+				parseInt(result.body.result, 10) > 2,
+				'must have gone at least once through the loop'
 			);
 
 		});

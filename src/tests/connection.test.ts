@@ -319,28 +319,6 @@ describe('Perl debugger connection', () => {
 			});
 		});
 
-		describe('getVariableList', () => {
-			it('Should get more scope variables types', async function() {
-				await testLaunch(conn, FILE_TEST_PL, DATA_ROOT, []);
-				await conn.setBreakPoint(23, FILE_MODULE);
-
-				await conn.continue();
-
-				const vars0 = await conn.getVariableList(0);
-				const actual = Object.keys(vars0).length;
-				const expected = [0, 44, 45, 46]; // xxx: Investigate 44+46 might be a perser issue
-				assert(expected.indexOf(actual) > -1, 'variable count level 0, actual: ' +
-						actual + ' expected: ' + expected.join(' or '));
-
-				const vars1 = await conn.getVariableList(1);
-				assert.equal(Object.keys(vars1).length, 7, 'variable count level 1');
-				const vars2 = await conn.getVariableList(2);
-				assert.equal(Object.keys(vars2).length, 1, 'variable count level 2');
-				const vars3 = await conn.getVariableList(3);
-				assert.equal(Object.keys(vars3).length, 0, 'variable count level 3');
-			});
-		});
-
 		describe('restart', () => {
 			it('Should start from the beginning', async () => {
 				let res = await testLaunch(conn, FILE_TEST_PL, DATA_ROOT, []);

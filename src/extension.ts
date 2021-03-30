@@ -184,7 +184,15 @@ class PerlDebugConfigurationProvider implements vscode.DebugConfigurationProvide
 
 		const editor = vscode.window.activeTextEditor;
 
-		if (!config.request && editor.document.languageId === 'perl') {
+		const perlEditor = (
+			editor
+			&&
+			editor.document
+			&&
+			editor.document.languageId === 'perl'
+		);
+
+		if (!config.request && perlEditor) {
 
 			const defaultConfig = vscode.extensions.getExtension(
 				"mortenhenriksen.perl-debug"

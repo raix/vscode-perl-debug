@@ -100,16 +100,7 @@ export class RemoteSession extends EventEmitter implements DebugSession {
 			}
 
 			socket.on('data', data => {
-				// const str = data.toString('utf8');
-				// const signature = str.split('\n').pop();
-				// xxx: We should figure out a more stable way of differentiating between
-				// command result and application output
-				this.stderr.push(data); // xxx: For now we don't forward application output
-				/*  if (debuggerSignature.test(signature)) {
-					this.stderr.push(data);
-				} else {
-					this.stdout.push(data);
-				}*/
+				this.stderr.push(data);
 			});
 
 			socket.on('end', data => {
